@@ -3011,7 +3011,8 @@ function App() {
   };
 
   // Main render
-  if (showLoginForm) return <LoginPage onLogin={handleLogin} />;
+if (showLoginForm) return <LoginPage onLogin={handleLogin} onRegister={handleRegister} />;
+
   if (showAdminDashboard) return <AdminDashboard />;
 
   return (
