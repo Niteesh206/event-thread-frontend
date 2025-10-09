@@ -3029,7 +3029,7 @@ function App() {
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">EventThreads</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Prastha</h1>
               <p className="text-sm text-gray-600">Temporary interest-based connections</p>
             </div>
             <div className="flex items-center gap-3">
