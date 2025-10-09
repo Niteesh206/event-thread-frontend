@@ -2337,6 +2337,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Clock, Users, MapPin, MessageCircle, Plus, X, Check, Hash, Calendar, Send, LogOut, User, Shield, Trash2, Eye } from 'lucide-react';
 import { authAPI, threadsAPI, adminAPI } from './services/api';
 import LoginPage from './components/LoginPage';
+import { io } from 'socket.io-client';
+
+const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 // Helper functions
 const formatTime = (dateString) => {
@@ -2365,23 +2368,52 @@ function App() {
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingThread, setEditingThread] = useState(null);
   const chatEndRef = useRef(null);
+  const socketRef = useRef(null);
+
+  // Initialize Socket.io
+  useEffect(() => {
+    if (currentUser && !showLoginForm) {
+      socketRef.current = io(SOCKET_URL, {
+        transports: ['websocket', 'polling']
+      });
+
+      socketRef.current.on('connect', () => {
+        console.log('✅ Socket connected');
+      });
+
+      socketRef.current.on('refresh-threads', () => {
+        console.log('🔄 Refreshing threads from socket');
+        loadThreads();
+      });
+
+      socketRef.current.on('disconnect', () => {
+        console.log('❌ Socket disconnected');
+      });
+
+      return () => {
+        if (socketRef.current) {
+          socketRef.current.disconnect();
+        }
+      };
+    }
+  }, [currentUser, showLoginForm]);
 
   // Auto-scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [selectedThread?.chat]);
 
-  // Load threads periodically
+  // Load threads periodically (as backup, socket handles real-time)
   useEffect(() => {
     if (currentUser && !showLoginForm) {
       loadThreads();
       
-      // Reduced from 30s to 10s for better real-time feel
+      // Backup polling every 60s (socket handles real-time updates)
       const interval = setInterval(() => {
         if (!showCreateForm && !showEditForm) {
           loadThreads();
         }
-      }, 10000); // Poll every 10 seconds
+      }, 60000);
       
       return () => clearInterval(interval);
     }
@@ -2804,6 +2836,29 @@ function App() {
     const isCreator = selectedThread.creatorId === currentUser.id;
     const isMember = selectedThread.members.includes(currentUser.id);
 
+    // Join thread room on mount
+    useEffect(() => {
+      if (socketRef.current && selectedThread) {
+        socketRef.current.emit('join-thread', selectedThread.id);
+        
+        // Listen for new messages
+        const handleNewMessage = (message) => {
+          console.log('📨 New message received:', message);
+          setSelectedThread(prev => ({
+            ...prev,
+            chat: [...prev.chat.filter(msg => !msg.isPending), message]
+          }));
+        };
+
+        socketRef.current.on('new-message', handleNewMessage);
+
+        return () => {
+          socketRef.current.emit('leave-thread', selectedThread.id);
+          socketRef.current.off('new-message', handleNewMessage);
+        };
+      }
+    }, [selectedThread?.id]);
+
     const sendMessage = async () => {
       if (!newMessage.trim()) return;
       
@@ -2816,14 +2871,14 @@ function App() {
         isPending: true
       };
 
-      // Optimistic update - add message immediately
+      // Optimistic update
       setSelectedThread(prev => ({
         ...prev,
         chat: [...prev.chat, tempMessage]
       }));
       
       const messageText = newMessage.trim();
-      setNewMessage(''); // Clear input immediately
+      setNewMessage('');
 
       try {
         const messageData = {
@@ -2832,14 +2887,10 @@ function App() {
           message: messageText
         };
         
-        const result = await threadsAPI.sendMessage(selectedThread.id, messageData);
-        
-        if (result.data.success) {
-          // Replace temp message with real one from server
-          loadThreads();
-        }
+        await threadsAPI.sendMessage(selectedThread.id, messageData);
+        // Socket will handle adding the real message
       } catch (error) {
-        // If error, remove the optimistic message and restore input
+        // Remove pending message on error
         setSelectedThread(prev => ({
           ...prev,
           chat: prev.chat.filter(msg => msg.id !== tempMessage.id)
