@@ -3244,8 +3244,28 @@ function App() {
   const [sortBy, setSortBy] = useState('newest');
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const chatEndRef = useRef(null);
   const socketRef = useRef(null);
+
+  // Request notification permission on login
+  useEffect(() => {
+    if (currentUser && !showLoginForm && 'Notification' in window) {
+      if (Notification.permission === 'granted') {
+        setNotificationsEnabled(true);
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            setNotificationsEnabled(true);
+            new Notification('EventThreads', {
+              body: 'Notifications enabled! You\'ll be alerted for important messages.',
+              icon: '/vite.svg'
+            });
+          }
+        });
+      }
+    }
+  }, [currentUser, showLoginForm]);
 
   // Categories for filtering
   const categories = [
@@ -3837,6 +3857,18 @@ function App() {
             ...prev,
             chat: [...prev.chat.filter(msg => !msg.isPending), message]
           }));
+
+          // Show web notification for alerts
+          if (message.user === 'Alert' && notificationsEnabled && Notification.permission === 'granted') {
+            // Extract alert text (remove "🚨 ALERT: " prefix if present)
+            const alertText = message.message.replace(/^🚨 ALERT:\s*/i, '');
+            new Notification(`🚨 ${selectedThread.title}`, {
+              body: alertText,
+              icon: '/vite.svg',
+              tag: 'alert-' + message.id,
+              requireInteraction: true // Keep notification visible until user interacts
+            });
+          }
         };
 
         socketRef.current.on('new-message', handleNewMessage);
@@ -3846,7 +3878,7 @@ function App() {
           socketRef.current.off('new-message', handleNewMessage);
         };
       }
-    }, [selectedThread?.id]);
+    }, [selectedThread?.id, notificationsEnabled]);
 
     const sendMessage = async () => {
       if (!newMessage.trim()) return;
@@ -4030,7 +4062,9 @@ function App() {
                   <div className="text-xs font-medium mb-1 opacity-70">{msg.user}</div>
                 )}
                 <div className={`text-sm ${msg.user === 'Alert' ? 'font-medium text-center' : ''}`}>
-                  {msg.user === 'Alert' ? msg.message.replace('🚨 ALERT: ', '') : msg.message}
+                  {msg.user === 'Alert' 
+                    ? msg.message.replace(/^🚨 ALERT:\s*/i, '').trim()
+                    : msg.message}
                 </div>
                 <div className={`text-xs opacity-70 mt-1 flex items-center ${msg.user === 'Alert' ? 'justify-center' : ''} gap-1`}>
                   {formatTime(msg.timestamp)}
@@ -4137,6 +4171,28 @@ function App() {
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-600">Hi, {currentUser.username}!</span>
+              
+              {/* Notification Permission Button */}
+              {!notificationsEnabled && 'Notification' in window && Notification.permission !== 'denied' && (
+                <button
+                  onClick={() => {
+                    Notification.requestPermission().then(permission => {
+                      if (permission === 'granted') {
+                        setNotificationsEnabled(true);
+                        new Notification('EventThreads', {
+                          body: 'Notifications enabled! You\'ll be alerted for important messages.',
+                          icon: '/vite.svg'
+                        });
+                      }
+                    });
+                  }}
+                  className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 text-xs rounded-lg hover:bg-green-200 transition-colors"
+                  title="Enable notifications for alerts"
+                >
+                  🔔 Enable Alerts
+                </button>
+              )}
+
               {currentUser.isAdmin && (
                 <button
                   onClick={() => setShowAdminDashboard(true)}
