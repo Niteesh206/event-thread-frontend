@@ -3867,7 +3867,7 @@ function App() {
               console.log('Showing notification...');
               
               // Extract alert text
-              const alertText = message.message.replace(/^🚨 ALERT:\s*/i, '').normalize('NFC').trim();
+              const alertText = message.message.replace(/^🚨 ALERT:\s*/i, '').trim();
               
               const notification = new Notification(`🚨 ${selectedThread.title}`, {
                 body: alertText,
@@ -3979,7 +3979,7 @@ function App() {
         const messageData = {
           user: 'Alert',
           userId: currentUser.id,
-          message: `🚨 ALERT: ${messageText}`
+          message: messageText  // Send clean message without prefix
         };
         
         console.log('Sending alert:', messageData);
