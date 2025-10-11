@@ -3867,7 +3867,7 @@ function App() {
               console.log('Showing notification...');
               
               // Extract alert text
-              const alertText = message.message.replace(/^🚨 ALERT:\s*/i, '').trim();
+              const alertText = message.message.replace(/^🚨 ALERT:\s*/i, '').normalize('NFC').trim();
               
               const notification = new Notification(`🚨 ${selectedThread.title}`, {
                 body: alertText,
