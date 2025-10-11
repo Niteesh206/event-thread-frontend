@@ -3853,21 +3853,42 @@ function App() {
         // Listen for new messages
         const handleNewMessage = (message) => {
           console.log('📨 New message received:', message);
+          
           setSelectedThread(prev => ({
             ...prev,
             chat: [...prev.chat.filter(msg => !msg.isPending), message]
           }));
 
           // Show web notification for alerts
-          if (message.user === 'Alert' && notificationsEnabled && Notification.permission === 'granted') {
-            // Extract alert text (remove "🚨 ALERT: " prefix if present)
-            const alertText = message.message.replace(/^🚨 ALERT:\s*/i, '');
-            new Notification(`🚨 ${selectedThread.title}`, {
-              body: alertText,
-              icon: '/vite.svg',
-              tag: 'alert-' + message.id,
-              requireInteraction: true // Keep notification visible until user interacts
-            });
+          if (message.user === 'Alert' && message.userId !== currentUser.id) {
+            console.log('Alert received, checking notifications...');
+            
+            if ('Notification' in window && Notification.permission === 'granted') {
+              console.log('Showing notification...');
+              
+              // Extract alert text
+              const alertText = message.message.replace(/^🚨 ALERT:\s*/i, '').trim();
+              
+              const notification = new Notification(`🚨 ${selectedThread.title}`, {
+                body: alertText,
+                icon: '/vite.svg',
+                tag: `alert-${message.id}`,
+                requireInteraction: true
+              });
+
+              // Play sound
+              try {
+                const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjmL0fPTgjMGHm7A7+OZSA0PVqzn8LJfGAg+ltryxnMpBSh+zPLaizsIGGS57OmiUBELTKXh8bllHAU2jdXzzn0vBSp5yu/glEIJEVqv5O+zYhYHPJPY8saxKgUneMrw3JI+CRVateXur10ZCTqO0/TOfy8GKnfJ8N+UQAkSV63k8LJgGQc7kdXzzn0wBSh1xe/hlUQJD1ap5O+yYRYIP5LX88p3LgUodMPu4JU/CRBUquPvsF8bCDuO0vPPgC0FKnTE7+KWRAkPUKfh76teFgo9j9Xz0H4xBSdywu/hlUIKD06k4O6vXhoJPIzS8s+ALwUpccHu4JM/ChFPpuHtr18cCDqOz/LQgS4GKnHA7uCUQAoQTaXg765dGAk7jdDyzn0xBShywO3gkT4KD0+k4O+wXhoJO43Q8s98MAUndrzv4JRAChBOpN/tr14bCDqLz/LPgC8GJ3K+7uCQPgkQTqPg77BeGQc5jM/y0H0zBCdvu+7gkz4KEFPI3+2uXRoJOYvP8c99MQUndr3v4JI+CRBNod/tr14aCTmLzvHNfDEFJ3S77+CRPgkPTaHf7a9dGQg5i87xzn0zBSd0u+/gkD4JD0uh3+2vXhoJOIrO8c59MgUodLrv4I8+CRBLod/sr10aCDiJzvHNfTIFJ3O67+COPQkQS6Df7K9dGgg4iM/xzXwyBSdyu+/gjz4JEFPI3+2uXRoJOIjO8c59MQUocrvv4I4+CRBLod/sr10aCDiJzvHNfDEFJ3K67+CNPwkQS6Df7K5dGgk4iM7xzXwyBSdxuO/gjj4JD0ug3+yvXRoIOInO8c59MQUncLrt4I4+CQ9LoN/sr10aCDiJzvHNfDEFJ3C67+CN') ;
+                audio.play().catch(e => console.log('Audio play failed:', e));
+              } catch (e) {
+                console.log('Audio not supported');
+              }
+
+              // Auto-close after 10 seconds
+              setTimeout(() => notification.close(), 10000);
+            } else {
+              console.log('Notifications not granted:', Notification.permission);
+            }
           }
         };
 
@@ -3947,41 +3968,32 @@ function App() {
     };
 
     const sendAlert = async () => {
-      if (!alertMessage.trim()) return;
+      if (!alertMessage.trim()) {
+        alert('Please enter an alert message');
+        return;
+      }
 
-      const alertMsg = {
-        id: `alert-${Date.now()}`,
-        user: 'Alert',
-        userId: currentUser.id,
-        message: `🚨 ALERT: ${alertMessage.trim()}`,
-        timestamp: new Date().toISOString(),
-        isAlert: true
-      };
-
-      // Optimistic update
-      setSelectedThread(prev => ({
-        ...prev,
-        chat: [...prev.chat, alertMsg]
-      }));
-
-      setAlertMessage('');
-      setShowAlertModal(false);
-
+      const messageText = alertMessage.trim();
+      
       try {
         const messageData = {
           user: 'Alert',
           userId: currentUser.id,
-          message: `🚨 ALERT: ${alertMessage.trim()}`
+          message: `🚨 ALERT: ${messageText}`
         };
         
-        await threadsAPI.sendMessage(selectedThread.id, messageData);
-        // Socket will broadcast the alert
+        console.log('Sending alert:', messageData);
+        
+        const result = await threadsAPI.sendMessage(selectedThread.id, messageData);
+        
+        if (result.data.success) {
+          setAlertMessage('');
+          setShowAlertModal(false);
+          console.log('Alert sent successfully');
+        }
       } catch (error) {
-        alert('Error sending alert');
-        setSelectedThread(prev => ({
-          ...prev,
-          chat: prev.chat.filter(msg => msg.id !== alertMsg.id)
-        }));
+        console.error('Error sending alert:', error);
+        alert('Error sending alert. Please try again.');
       }
     };
 
@@ -4041,38 +4053,55 @@ function App() {
           </div>
         )}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 chat-container">
-          {selectedThread.chat.map(msg => (
-            <div key={msg.id} className={`flex ${msg.user === currentUser.username ? 'justify-end' : msg.user === 'Alert' ? 'justify-center' : 'justify-start'}`}>
-              <div className={`${msg.user === 'Alert' ? 'max-w-2xl' : 'max-w-xs lg:max-w-md'} px-4 py-2 rounded-lg ${
-                msg.user === 'Alert'
-                  ? 'bg-orange-100 border-2 border-orange-500 text-orange-900 w-full'
-                  : msg.user === currentUser.username
-                  ? `bg-blue-600 text-white ${msg.isPending ? 'opacity-70' : ''}`
-                  : msg.user === 'System'
-                  ? 'bg-gray-100 text-gray-600 text-center text-sm'
-                  : 'bg-gray-100 text-gray-900'
+          {selectedThread.chat && selectedThread.chat.length > 0 ? (
+            selectedThread.chat.map(msg => (
+              <div key={msg.id} className={`flex ${
+                msg.user === 'Alert' ? 'justify-center' : 
+                msg.user === currentUser.username ? 'justify-end' : 
+                'justify-start'
               }`}>
-                {msg.user === 'Alert' && (
-                  <div className="flex items-center gap-2 mb-2 font-bold text-orange-900">
-                    <span className="text-2xl">🚨</span>
-                    <span>CREATOR ALERT</span>
+                <div className={`${
+                  msg.user === 'Alert' ? 'max-w-full w-full' : 'max-w-xs lg:max-w-md'
+                } px-4 py-3 rounded-lg ${
+                  msg.user === 'Alert'
+                    ? 'bg-gradient-to-r from-orange-100 to-red-100 border-2 border-orange-400 shadow-lg'
+                    : msg.user === currentUser.username
+                    ? `bg-blue-600 text-white ${msg.isPending ? 'opacity-70' : ''}`
+                    : msg.user === 'System'
+                    ? 'bg-gray-100 text-gray-600 text-center text-sm'
+                    : 'bg-gray-100 text-gray-900'
+                }`}>
+                  {msg.user === 'Alert' && (
+                    <div className="flex items-center justify-center gap-2 mb-2 font-bold text-red-700">
+                      <span className="text-2xl animate-pulse">🚨</span>
+                      <span className="text-lg">CREATOR ALERT</span>
+                      <span className="text-2xl animate-pulse">🚨</span>
+                    </div>
+                  )}
+                  {msg.user !== currentUser.username && msg.user !== 'System' && msg.user !== 'Alert' && (
+                    <div className="text-xs font-medium mb-1 opacity-70">{msg.user}</div>
+                  )}
+                  <div className={`${
+                    msg.user === 'Alert' 
+                      ? 'text-base font-bold text-center text-gray-900' 
+                      : 'text-sm'
+                  }`}>
+                    {msg.user === 'Alert' 
+                      ? msg.message.replace(/^🚨\s*ALERT:\s*/i, '').trim()
+                      : msg.message}
                   </div>
-                )}
-                {msg.user !== currentUser.username && msg.user !== 'System' && msg.user !== 'Alert' && (
-                  <div className="text-xs font-medium mb-1 opacity-70">{msg.user}</div>
-                )}
-                <div className={`text-sm ${msg.user === 'Alert' ? 'font-medium text-center' : ''}`}>
-                  {msg.user === 'Alert' 
-                    ? msg.message.replace(/^🚨 ALERT:\s*/i, '').trim()
-                    : msg.message}
-                </div>
-                <div className={`text-xs opacity-70 mt-1 flex items-center ${msg.user === 'Alert' ? 'justify-center' : ''} gap-1`}>
-                  {formatTime(msg.timestamp)}
-                  {msg.isPending && <span className="text-xs">⏳</span>}
+                  <div className={`text-xs opacity-70 mt-1 flex items-center ${
+                    msg.user === 'Alert' ? 'justify-center' : ''
+                  } gap-1`}>
+                    {formatTime(msg.timestamp)}
+                    {msg.isPending && <span className="text-xs">⏳</span>}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            <div className="text-center text-gray-400 mt-8">No messages yet</div>
+          )}
           <div ref={chatEndRef} />
         </div>
         {(isMember || isAdmin) && (
@@ -4175,22 +4204,30 @@ function App() {
               {/* Notification Permission Button */}
               {!notificationsEnabled && 'Notification' in window && Notification.permission !== 'denied' && (
                 <button
-                  onClick={() => {
-                    Notification.requestPermission().then(permission => {
-                      if (permission === 'granted') {
-                        setNotificationsEnabled(true);
-                        new Notification('EventThreads', {
-                          body: 'Notifications enabled! You\'ll be alerted for important messages.',
-                          icon: '/vite.svg'
-                        });
-                      }
-                    });
+                  onClick={async () => {
+                    const permission = await Notification.requestPermission();
+                    if (permission === 'granted') {
+                      setNotificationsEnabled(true);
+                      new Notification('EventThreads Notifications Enabled! 🎉', {
+                        body: 'You will now receive alerts for important updates.',
+                        icon: '/vite.svg',
+                        tag: 'notification-enabled'
+                      });
+                    } else {
+                      alert('Please enable notifications in your browser settings to receive alerts.');
+                    }
                   }}
-                  className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 text-xs rounded-lg hover:bg-green-200 transition-colors"
+                  className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 text-xs rounded-lg hover:bg-green-200 transition-colors animate-pulse"
                   title="Enable notifications for alerts"
                 >
                   🔔 Enable Alerts
                 </button>
+              )}
+
+              {notificationsEnabled && (
+                <span className="text-xs text-green-600 flex items-center gap-1">
+                  ✅ Alerts On
+                </span>
               )}
 
               {currentUser.isAdmin && (
