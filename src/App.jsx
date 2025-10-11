@@ -3854,40 +3854,56 @@ function App() {
         const handleNewMessage = (message) => {
           console.log('📨 New message received:', message);
           
+          // Add message to chat
           setSelectedThread(prev => ({
             ...prev,
             chat: [...prev.chat.filter(msg => !msg.isPending), message]
           }));
 
-          // Show web notification for alerts
+          // Show DEVICE notification for alerts (only for other users)
           if (message.user === 'Alert' && message.userId !== currentUser.id) {
-            console.log('Alert received, checking notifications...');
+            console.log('🚨 Alert received from another user!');
             
-            if ('Notification' in window && Notification.permission === 'granted') {
-              console.log('Showing notification...');
+            if ('Notification' in window) {
+              console.log('Notification permission:', Notification.permission);
               
-              // Extract alert text
-              const alertText = message.message.replace(/^🚨 ALERT:\s*/i, '').trim();
-              
-              const notification = new Notification(`🚨 ${selectedThread.title}`, {
-                body: alertText,
-                icon: '/vite.svg',
-                tag: `alert-${message.id}`,
-                requireInteraction: true
-              });
+              if (Notification.permission === 'granted') {
+                console.log('✅ Showing notification...');
+                
+                // Create notification
+                const notification = new Notification(`🚨 Alert from ${selectedThread.title}`, {
+                  body: message.message,  // Use the clean message directly
+                  icon: '/vite.svg',
+                  badge: '/vite.svg',
+                  tag: `alert-${message.id}`,
+                  requireInteraction: true,
+                  silent: false
+                });
 
-              // Play sound
-              try {
-                const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjmL0fPTgjMGHm7A7+OZSA0PVqzn8LJfGAg+ltryxnMpBSh+zPLaizsIGGS57OmiUBELTKXh8bllHAU2jdXzzn0vBSp5yu/glEIJEVqv5O+zYhYHPJPY8saxKgUneMrw3JI+CRVateXur10ZCTqO0/TOfy8GKnfJ8N+UQAkSV63k8LJgGQc7kdXzzn0wBSh1xe/hlUQJD1ap5O+yYRYIP5LX88p3LgUodMPu4JU/CRBUquPvsF8bCDuO0vPPgC0FKnTE7+KWRAkPUKfh76teFgo9j9Xz0H4xBSdywu/hlUIKD06k4O6vXhoJPIzS8s+ALwUpccHu4JM/ChFPpuHtr18cCDqOz/LQgS4GKnHA7uCUQAoQTaXg765dGAk7jdDyzn0xBShywO3gkT4KD0+k4O+wXhoJO43Q8s98MAUndrzv4JRAChBOpN/tr14bCDqLz/LPgC8GJ3K+7uCQPgkQTqPg77BeGQc5jM/y0H0zBCdvu+7gkz4KEFPI3+2uXRoJOYvP8c99MQUndr3v4JI+CRBNod/tr14aCTmLzvHNfDEFJ3S77+CRPgkPTaHf7a9dGQg5i87xzn0zBSd0u+/gkD4JD0uh3+2vXhoJOIrO8c59MgUodLrv4I8+CRBLod/sr10aCDiJzvHNfTIFJ3O67+COPQkQS6Df7K9dGgg4iM/xzXwyBSdyu+/gjz4JEFPI3+2uXRoJOIjO8c59MQUocrvv4I4+CRBLod/sr10aCDiJzvHNfDEFJ3K67+CNPwkQS6Df7K5dGgk4iM7xzXwyBSdxuO/gjj4JD0ug3+yvXRoIOInO8c59MQUncLrt4I4+CQ9LoN/sr10aCDiJzvHNfDEFJ3C67+CN') ;
-                audio.play().catch(e => console.log('Audio play failed:', e));
-              } catch (e) {
-                console.log('Audio not supported');
+                // Notification click handler
+                notification.onclick = () => {
+                  window.focus();
+                  notification.close();
+                };
+
+                console.log('✅ Notification created successfully');
+              } else if (Notification.permission === 'default') {
+                console.log('⚠️ Requesting notification permission...');
+                Notification.requestPermission().then(permission => {
+                  if (permission === 'granted') {
+                    new Notification(`🚨 Alert from ${selectedThread.title}`, {
+                      body: message.message,
+                      icon: '/vite.svg',
+                      tag: `alert-${message.id}`,
+                      requireInteraction: true
+                    });
+                  }
+                });
+              } else {
+                console.log('❌ Notifications denied');
               }
-
-              // Auto-close after 10 seconds
-              setTimeout(() => notification.close(), 10000);
             } else {
-              console.log('Notifications not granted:', Notification.permission);
+              console.log('❌ Notifications not supported in this browser');
             }
           }
         };
@@ -3974,6 +3990,9 @@ function App() {
       }
 
       const messageText = alertMessage.trim();
+      console.log('Alert message typed:', messageText);
+      console.log('Alert message length:', messageText.length);
+      console.log('Alert message chars:', messageText.split('').map((c, i) => `[${i}]: ${c}`).join(', '));
       
       try {
         const messageData = {
@@ -3982,17 +4001,19 @@ function App() {
           message: messageText  // Send clean message without prefix
         };
         
-        console.log('Sending alert:', messageData);
+        console.log('Sending alert data:', JSON.stringify(messageData, null, 2));
         
         const result = await threadsAPI.sendMessage(selectedThread.id, messageData);
+        
+        console.log('Alert response:', result.data);
         
         if (result.data.success) {
           setAlertMessage('');
           setShowAlertModal(false);
-          console.log('Alert sent successfully');
+          console.log('✅ Alert sent successfully');
         }
       } catch (error) {
-        console.error('Error sending alert:', error);
+        console.error('❌ Error sending alert:', error);
         alert('Error sending alert. Please try again.');
       }
     };
@@ -4087,7 +4108,7 @@ function App() {
                       : 'text-sm'
                   }`}>
                     {msg.user === 'Alert' 
-                      ? msg.message.replace(/^🚨\s*ALERT:\s*/i, '').trim()
+                      ? msg.message
                       : msg.message}
                   </div>
                   <div className={`text-xs opacity-70 mt-1 flex items-center ${
@@ -4155,6 +4176,8 @@ function App() {
                 rows={4}
                 maxLength={200}
                 autoFocus
+                dir="ltr"
+                style={{ direction: 'ltr', textAlign: 'left' }}
               />
               <div className="text-xs text-gray-500 mb-4">
                 {alertMessage.length}/200 characters
