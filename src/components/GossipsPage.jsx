@@ -74,13 +74,26 @@ const GossipsPage = ({ currentUser, socketRef, onBack }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* HEADER */}
       <header className="bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg">
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">💬 Gossips</h1>
-              <p className="text-purple-100 mt-1">Share anonymously, vote freely!</p>
+            {/* Left side: Back + Title */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={onBack}
+                className="flex items-center gap-1 px-3 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </button>
+              <div>
+                <h1 className="text-3xl font-bold">💬 Gossips</h1>
+                <p className="text-purple-100 mt-1">Share anonymously, vote freely!</p>
+              </div>
             </div>
+
+            {/* Right side: Create Gossip Button */}
             <button
               onClick={() => setShowCreateForm(true)}
               className="flex items-center gap-2 px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 transition-colors font-medium"
@@ -92,6 +105,7 @@ const GossipsPage = ({ currentUser, socketRef, onBack }) => {
         </div>
       </header>
 
+      {/* MAIN */}
       <main className="max-w-4xl mx-auto px-4 py-6">
         {/* Sort Options */}
         <div className="mb-6 flex gap-2">
@@ -150,6 +164,7 @@ const GossipsPage = ({ currentUser, socketRef, onBack }) => {
         </div>
       </main>
 
+      {/* Create Gossip Form Modal */}
       {showCreateForm && (
         <CreateGossipForm
           currentUser={currentUser}
@@ -419,13 +434,5 @@ const CreateGossipForm = ({ currentUser, onClose, onSuccess }) => {
     </div>
   );
 };
-<button
-  onClick={onBack}
-  className="flex items-center gap-1 px-3 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 transition-colors"
->
-  <ArrowLeft className="w-4 h-4" />
-  Back
-</button>
-
 
 export default GossipsPage;
