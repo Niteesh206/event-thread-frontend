@@ -419,5 +419,13 @@ const CreateGossipForm = ({ currentUser, onClose, onSuccess }) => {
     </div>
   );
 };
+<button
+  onClick={onBack}
+  className="flex items-center gap-1 px-3 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 transition-colors"
+>
+  <ArrowLeft className="w-4 h-4" />
+  Back
+</button>
+
 
 export default GossipsPage;

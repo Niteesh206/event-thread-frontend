@@ -3210,9 +3210,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Clock, Users, MapPin, MessageCircle, Plus, X, Check, Hash, Calendar, Send, LogOut, User, Shield, Trash2, Eye, MessageSquare } from 'lucide-react';
 import { authAPI, threadsAPI, adminAPI } from './services/api';
 import LoginPage from './components/LoginPage';
-import GossipsPage from './components/GossipsPage';
 import { io } from 'socket.io-client';
-
+import GossipsPage from './components/GossipsPage';
 const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 // Helper functions
@@ -3246,6 +3245,7 @@ function App() {
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [showGossipsPage, setShowGossipsPage] = useState(false);
   const chatEndRef = useRef(null);
   const socketRef = useRef(null);
 
@@ -3872,14 +3872,21 @@ function App() {
                 console.log('✅ Showing notification...');
                 
                 // Create notification
-                const notification = new Notification(`🚨 Alert from ${selectedThread.title}`, {
-                  body: message.message,  // Use the clean message directly
-                  icon: '/vite.svg',
-                  badge: '/vite.svg',
-                  tag: `alert-${message.id}`,
-                  requireInteraction: true,
-                  silent: false
-                });
+                // Clean and force left-to-right alert text
+const cleanAlertText = message.message
+  .replace(/[\u202A-\u202E]/g, '')   // remove hidden direction markers
+  .normalize('NFC')
+  .trim();
+
+const notification = new Notification(`🚨 Alert from ${selectedThread.title}`, {
+  body: `\u202A${cleanAlertText}`,    // \u202A forces Left-to-Right direction
+  icon: '/vite.svg',
+  badge: '/vite.svg',
+  tag: `alert-${message.id}`,
+  requireInteraction: true,
+  silent: false
+});
+
 
                 // Notification click handler
                 notification.onclick = () => {
@@ -4212,6 +4219,16 @@ function App() {
   // Main render
   if (showLoginForm) return <LoginPage onLogin={handleLogin} onRegister={handleRegister} />;
   if (showAdminDashboard) return <AdminDashboard />;
+  if (showGossipsPage) {
+  return (
+    <GossipsPage
+      currentUser={currentUser}
+      socketRef={socketRef}
+      onBack={() => setShowGossipsPage(false)}
+    />
+  );
+}
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -4366,6 +4383,12 @@ function App() {
             </div>
           </div>
         </div>
+<button
+  onClick={() => setShowGossipsPage(true)}
+  className="flex items-center gap-1 px-3 py-2 bg-pink-600 text-white text-sm rounded-lg hover:bg-pink-700 transition-colors"
+>
+  🗣️ Gossips
+</button>
 
         <div className="mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">
