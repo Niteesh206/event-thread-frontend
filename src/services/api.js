@@ -317,4 +317,27 @@ export const adminAPI = {
   }
 };
 
+// Gossips API
+export const gossipsAPI = {
+  getAll: (sortBy = 'newest') => {
+    return api.get(`/api/gossips?sortBy=${sortBy}`);
+  },
+  
+  create: (gossipData) => {
+    return api.post('/api/gossips', gossipData);
+  },
+  
+  vote: (gossipId, userId, voteType) => {
+    return api.post(`/api/gossips/${gossipId}/vote`, { userId, voteType });
+  },
+  
+  addComment: (gossipId, commentData) => {
+    return api.post(`/api/gossips/${gossipId}/comments`, commentData);
+  },
+  
+  delete: (gossipId, userId) => {
+    return api.delete(`/api/gossips/${gossipId}`, { data: { userId } });
+  }
+};
+
 export default api;
