@@ -614,12 +614,29 @@ const GossipsPage = ({ currentUser, socketRef, onBack }) => {
 const GossipCard = ({ gossip, currentUser, onVote, onDelete, expanded, onToggleExpand, onCommentAdded }) => {
   const [showCommentBox, setShowCommentBox] = useState(false);
   const [newComment, setNewComment] = useState('');
+  const [replyingTo, setReplyingTo] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const hasUpvoted = gossip.upvotedBy.includes(currentUser.id);
   const hasDownvoted = gossip.downvotedBy.includes(currentUser.id);
   const isAuthor = gossip.authorId === currentUser.id;
   const isAdmin = currentUser.isAdmin;
+
+  // Calculate time remaining
+  const getTimeRemaining = () => {
+    const now = new Date();
+    const expires = new Date(gossip.expiresAt);
+    const diff = expires - now;
+    
+    if (diff <= 0) return 'Expired';
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) return `${days}d remaining`;
+    if (hours > 0) return `${hours}h remaining`;
+    return 'Expiring soon';
+  };
 
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
@@ -629,12 +646,15 @@ const GossipCard = ({ gossip, currentUser, onVote, onDelete, expanded, onToggleE
       const commentData = {
         content: newComment,
         authorId: currentUser.id,
-        authorUsername: currentUser.username
+        authorUsername: currentUser.username,
+        parentCommentId: replyingTo?.id || null,
+        replyTo: replyingTo?.author || null
       };
 
       await gossipsAPI.addComment(gossip.id, commentData);
       setNewComment('');
       setShowCommentBox(false);
+      setReplyingTo(null);
       onCommentAdded();
     } catch (error) {
       alert('Error adding comment');
@@ -642,6 +662,24 @@ const GossipCard = ({ gossip, currentUser, onVote, onDelete, expanded, onToggleE
       setLoading(false);
     }
   };
+
+  // Group comments by parent
+  const groupedComments = gossip.comments.reduce((acc, comment) => {
+    if (!comment.parentCommentId) {
+      acc.push({ ...comment, replies: [] });
+    }
+    return acc;
+  }, []);
+
+  // Add replies to their parents
+  gossip.comments.forEach(comment => {
+    if (comment.parentCommentId) {
+      const parent = groupedComments.find(c => c.id === comment.parentCommentId);
+      if (parent) {
+        parent.replies.push(comment);
+      }
+    }
+  });
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow">
@@ -651,9 +689,15 @@ const GossipCard = ({ gossip, currentUser, onVote, onDelete, expanded, onToggleE
           <span className="text-sm font-medium text-purple-600">
             👤 {gossip.author}
           </span>
-          <span className="text-xs text-gray-400">
-            {new Date(gossip.createdAt).toLocaleString()}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-orange-600 flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              {getTimeRemaining()}
+            </span>
+            <span className="text-xs text-gray-400">
+              {new Date(gossip.createdAt).toLocaleString()}
+            </span>
+          </div>
         </div>
         <p className="text-gray-900 text-base">{gossip.content}</p>
       </div>
@@ -706,20 +750,83 @@ const GossipCard = ({ gossip, currentUser, onVote, onDelete, expanded, onToggleE
       {expanded && (
         <div className="mt-4 pt-4 border-t border-gray-200">
           <div className="space-y-3 mb-4">
-            {gossip.comments.length === 0 ? (
+            {groupedComments.length === 0 ? (
               <p className="text-gray-400 text-sm text-center py-2">No comments yet</p>
             ) : (
-              gossip.comments.map(comment => (
-                <div key={comment.id} className="bg-gray-50 rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-purple-600">
-                      👤 {comment.author}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      {new Date(comment.createdAt).toLocaleString()}
-                    </span>
+              groupedComments.map(comment => (
+                <div key={comment.id}>
+                  {/* Parent Comment */}
+                  <div className="bg-gray-50 rounded-lg p-3 hover:bg-gray-100 transition-colors">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-semibold text-purple-600">
+                            {comment.author}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {new Date(comment.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-800">{comment.content}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={() => {
+                          setReplyingTo({ id: comment.id, author: comment.author });
+                          setShowCommentBox(true);
+                        }}
+                        className="text-xs font-medium text-purple-600 hover:text-purple-800 flex items-center gap-1 transition-colors"
+                      >
+                        <Reply className="w-3 h-3" />
+                        Reply
+                      </button>
+                      {comment.replies && comment.replies.length > 0 && (
+                        <span className="text-xs text-gray-500">
+                          {comment.replies.length} {comment.replies.length === 1 ? 'reply' : 'replies'}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-700">{comment.content}</p>
+
+                  {/* Replies */}
+                  {comment.replies && comment.replies.length > 0 && (
+                    <div className="ml-6 mt-2 space-y-2 border-l-2 border-purple-300 pl-4">
+                      {comment.replies.map(reply => (
+                        <div key={reply.id} className="bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-sm font-semibold text-purple-600">
+                                  {reply.author}
+                                </span>
+                                <span className="text-xs text-gray-400">
+                                  →
+                                </span>
+                                <span className="text-xs font-medium text-gray-600">
+                                  @{reply.replyTo}
+                                </span>
+                                <span className="text-xs text-gray-400">
+                                  {new Date(reply.createdAt).toLocaleString()}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-800">{reply.content}</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setReplyingTo({ id: reply.id, author: reply.author });
+                              setShowCommentBox(true);
+                            }}
+                            className="text-xs font-medium text-purple-600 hover:text-purple-800 flex items-center gap-1 transition-colors"
+                          >
+                            <Reply className="w-3 h-3" />
+                            Reply
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -734,8 +841,21 @@ const GossipCard = ({ gossip, currentUser, onVote, onDelete, expanded, onToggleE
             </button>
           ) : (
             <div className="space-y-2">
+              {replyingTo && (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-2 flex items-center justify-between">
+                  <span className="text-xs text-purple-700">
+                    Replying to <strong>@{replyingTo.author}</strong>
+                  </span>
+                  <button
+                    onClick={() => setReplyingTo(null)}
+                    className="text-purple-600 hover:text-purple-800"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
               <textarea
-                placeholder="Write your comment..."
+                placeholder={replyingTo ? "Write your reply..." : "Write your comment..."}
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
@@ -751,6 +871,7 @@ const GossipCard = ({ gossip, currentUser, onVote, onDelete, expanded, onToggleE
                     onClick={() => {
                       setShowCommentBox(false);
                       setNewComment('');
+                      setReplyingTo(null);
                     }}
                     className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded-lg text-sm"
                   >
@@ -762,7 +883,7 @@ const GossipCard = ({ gossip, currentUser, onVote, onDelete, expanded, onToggleE
                     className="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm flex items-center gap-1"
                   >
                     <Send className="w-3 h-3" />
-                    Post
+                    {replyingTo ? 'Reply' : 'Post'}
                   </button>
                 </div>
               </div>
