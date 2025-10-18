@@ -441,65 +441,9 @@
 //2
 import React, { useState, useEffect } from 'react';
 import { ThumbsUp, ThumbsDown, MessageCircle, Plus, X, Send, Trash2, ArrowLeft, ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { gossipsAPI } from '../services/api';
 
-// Mock API for demonstration
-const gossipsAPI = {
-  getAll: async (sortBy) => ({
-    data: {
-      success: true,
-      gossips: [
-        {
-          id: 1,
-          content: "Did you hear about the new project deadline? It got moved up by two weeks!",
-          author: "anonymous_user",
-          authorId: 1,
-          upvotes: 15,
-          downvotes: 3,
-          upvotedBy: [],
-          downvotedBy: [],
-          comments: [
-            {
-              id: 1,
-              content: "No way! That's crazy. How are we supposed to finish on time?",
-              author: "commenter1",
-              authorId: 2,
-              createdAt: new Date().toISOString(),
-              parentCommentId: null
-            },
-            {
-              id: 2,
-              content: "I heard they're bringing in contractors to help.",
-              author: "commenter2",
-              authorId: 3,
-              createdAt: new Date().toISOString(),
-              parentCommentId: 1,
-              replyTo: "commenter1"
-            },
-            {
-              id: 3,
-              content: "That makes sense. Still stressful though!",
-              author: "commenter1",
-              authorId: 2,
-              createdAt: new Date().toISOString(),
-              parentCommentId: 1,
-              replyTo: "commenter2"
-            }
-          ],
-          createdAt: new Date().toISOString(),
-          expiresAt: new Date(Date.now() + 86400000).toISOString()
-        }
-      ]
-    }
-  }),
-  vote: async (gossipId, userId, voteType) => ({
-    data: { success: true, upvotes: 16, downvotes: 3 }
-  }),
-  delete: async (gossipId, userId) => ({ data: { success: true } }),
-  create: async (data) => ({ data: { success: true } }),
-  addComment: async (gossipId, commentData) => ({ data: { success: true } })
-};
-
-const GossipsPage = ({ currentUser = { id: 1, username: 'demo_user', isAdmin: false }, socketRef, onBack = () => {} }) => {
+const GossipsPage = ({ currentUser, socketRef, onBack }) => {
   const [gossips, setGossips] = useState([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [sortBy, setSortBy] = useState('newest');
