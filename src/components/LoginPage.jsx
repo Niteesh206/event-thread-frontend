@@ -382,7 +382,7 @@ const LoginPage = ({ onLogin, onRegister }) => {
               <MessageSquare className="w-6 h-6 text-white" />
             </div>
             <span className="text-2xl font-bold text-white drop-shadow-lg">
-              EventThreads
+              Prastha
             </span>
           </div>
         </header>
@@ -608,7 +608,7 @@ const LoginPage = ({ onLogin, onRegister }) => {
       {/* Footer */}
       <footer className="py-6 px-4 border-t border-white/10 animate-fade-in">
         <div className="max-w-6xl mx-auto text-center text-sm text-white/80">
-          <p>© 2024 EventThreads. Connect, Chat, Expire.</p>
+          <p>© 2024 Prastha. Connect, Chat, Expire.</p>
         </div>
       </footer>
       </div>

@@ -1390,7 +1390,7 @@ function App() {
         Notification.requestPermission().then(permission => {
           if (permission === 'granted') {
             setNotificationsEnabled(true);
-            new Notification('EventThreads', {
+            new Notification('Prastha', {
               body: 'Notifications enabled! You\'ll be alerted for important messages.',
               icon: '/vite.svg'
             });
@@ -2452,7 +2452,7 @@ function App() {
               </div>
               <div>
                 <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  EventThreads
+                  Prastha
                 </h1>
                 <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                   Connect • Chat • Expire
@@ -2497,7 +2497,7 @@ function App() {
                     const permission = await Notification.requestPermission();
                     if (permission === 'granted') {
                       setNotificationsEnabled(true);
-                      new Notification('EventThreads Notifications Enabled! 🎉', {
+                      new Notification('Prastha Notifications Enabled! 🎉', {
                         body: 'You will now receive alerts for important updates.',
                         icon: '/vite.svg',
                         tag: 'notification-enabled'

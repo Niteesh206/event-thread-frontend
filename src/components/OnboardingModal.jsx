@@ -36,7 +36,7 @@ export const OnboardingModal = ({ open, onClose, onComplete }) => {
     <Modal
       open={open}
       onClose={onClose}
-      title="Welcome to EventThreads! 👋"
+      title="Welcome to Prastha! 👋"
       description="Let's personalize your experience. Choose your interests to see relevant event threads."
       size="lg"
     >
