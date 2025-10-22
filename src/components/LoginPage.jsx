@@ -378,8 +378,12 @@ const LoginPage = ({ onLogin, onRegister }) => {
         {/* Header */}
         <header className="p-6 animate-slide-in">
           <div className="max-w-6xl mx-auto flex items-center gap-3">
-            <div className="bg-white/20 backdrop-blur-md p-2 rounded-xl shadow-lg hover-lift border border-white/30">
-              <MessageSquare className="w-6 h-6 text-white" />
+            <div className="bg-white/20 backdrop-blur-md p-2 rounded-xl shadow-lg hover-lift border border-white/30 overflow-hidden">
+              <img 
+                src="/src/components/ui/logo.jpg" 
+                alt="Prastha Logo" 
+                className="w-8 h-8 object-cover rounded-lg"
+              />
             </div>
             <span className="text-2xl font-bold text-white drop-shadow-lg">
               Prastha
@@ -419,8 +423,8 @@ const LoginPage = ({ onLogin, onRegister }) => {
                     <feature.icon className={`w-6 h-6 text-white`} />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">{feature.title}</h3>
-                    <p className="text-gray-600 text-sm">{feature.desc}</p>
+                    <h3 className="font-semibold text-white mb-1">{feature.title}</h3>
+                    <p className="text-white/80 text-sm">{feature.desc}</p>
                   </div>
                 </div>
               ))}
