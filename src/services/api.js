@@ -345,8 +345,9 @@
 //gpt1
 import axios from 'axios';
 
-// Use environment variable for API URL
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// Use environment variable for API URL. If not provided, use a relative URL
+// so requests are sent to the dev server and can be proxied by Vite.
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 // Create axios instance with default config
 const api = axios.create({

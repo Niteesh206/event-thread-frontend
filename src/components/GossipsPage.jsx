@@ -510,26 +510,35 @@ const GossipsPage = ({ currentUser, socketRef, onBack }) => {
     }
   };
 
+  const handleBack = () => {
+    if (window.confirm('Are you sure you want to leave Gossips? You will return to the main page.')) {
+      onBack();
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-white animate-fade-in">
+      <header className="bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 text-white shadow-2xl sticky top-0 z-40 backdrop-blur-sm">
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 animate-slide-in">
               <button
-                onClick={onBack}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                onClick={handleBack}
+                className="p-2 hover:bg-white/20 rounded-xl transition-all hover:scale-110 active:scale-95 ripple"
+                title="Back to Home"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-3xl font-bold">💬 Gossips</h1>
-                <p className="text-purple-100 mt-1">Share anonymously, vote freely!</p>
+                <h1 className="text-3xl font-bold flex items-center gap-2">
+                  💬 Gossips
+                </h1>
+                <p className="text-purple-100 mt-1 text-sm">Share anonymously, vote freely!</p>
               </div>
             </div>
             <button
               onClick={() => setShowCreateForm(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 transition-colors font-medium"
+              className="flex items-center gap-2 px-4 py-2 bg-white text-purple-600 rounded-xl hover:bg-purple-50 hover:shadow-lg transition-all font-medium hover-lift ripple"
             >
               <Plus className="w-5 h-5" />
               Post Gossip
@@ -539,56 +548,75 @@ const GossipsPage = ({ currentUser, socketRef, onBack }) => {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-6">
-        <div className="mb-6 flex gap-2">
+        {/* Enhanced Sort Options */}
+        <div className="mb-6 flex gap-3 flex-wrap animate-scale-in">
           <button
             onClick={() => setSortBy('newest')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-5 py-2.5 rounded-xl font-medium transition-all transform hover:scale-105 ${
               sortBy === 'newest'
-                ? 'bg-purple-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
+                : 'bg-white text-gray-700 hover:shadow-md border border-gray-200'
             }`}
           >
             🆕 Newest
           </button>
           <button
             onClick={() => setSortBy('popular')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-5 py-2.5 rounded-xl font-medium transition-all transform hover:scale-105 ${
               sortBy === 'popular'
-                ? 'bg-purple-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
+                : 'bg-white text-gray-700 hover:shadow-md border border-gray-200'
             }`}
           >
             🔥 Popular
           </button>
           <button
             onClick={() => setSortBy('controversial')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-5 py-2.5 rounded-xl font-medium transition-all transform hover:scale-105 ${
               sortBy === 'controversial'
-                ? 'bg-purple-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
+                : 'bg-white text-gray-700 hover:shadow-md border border-gray-200'
             }`}
           >
             ⚡ Controversial
           </button>
+          <div className="ml-auto flex items-center gap-2 text-sm text-gray-600 bg-white px-4 py-2 rounded-xl border border-gray-200">
+            <span className="font-medium">{gossips.length}</span> gossip{gossips.length !== 1 ? 's' : ''}
+          </div>
         </div>
 
+        {/* Gossips List with enhanced animations */}
         <div className="space-y-4">
           {gossips.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg">
-              <p className="text-gray-500">No gossips yet. Be the first to share!</p>
+            <div className="text-center py-16 bg-white rounded-2xl shadow-lg border border-purple-100 animate-scale-in">
+              <div className="text-6xl mb-4">💬</div>
+              <p className="text-gray-500 text-lg font-medium mb-2">No gossips yet</p>
+              <p className="text-gray-400 text-sm">Be the first to share something interesting!</p>
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="mt-6 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:shadow-lg transition-all hover-lift"
+              >
+                <Plus className="w-5 h-5 inline mr-2" />
+                Create First Gossip
+              </button>
             </div>
           ) : (
-            gossips.map(gossip => (
-              <GossipCard
+            gossips.map((gossip, idx) => (
+              <div 
                 key={gossip.id}
-                gossip={gossip}
-                currentUser={currentUser}
-                onVote={handleVote}
-                onDelete={handleDelete}
-                expanded={expandedGossip === gossip.id}
-                onToggleExpand={() => setExpandedGossip(expandedGossip === gossip.id ? null : gossip.id)}
-                onCommentAdded={loadGossips}
-              />
+                className="animate-slide-in"
+                style={{ animationDelay: `${idx * 50}ms` }}
+              >
+                <GossipCard
+                  gossip={gossip}
+                  currentUser={currentUser}
+                  onVote={handleVote}
+                  onDelete={handleDelete}
+                  expanded={expandedGossip === gossip.id}
+                  onToggleExpand={() => setExpandedGossip(expandedGossip === gossip.id ? null : gossip.id)}
+                  onCommentAdded={loadGossips}
+                />
+              </div>
             ))
           )}
         </div>
@@ -748,11 +776,12 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
   );
 };
 
-// Gossip Card Component
+// Gossip Card Component with Enhanced UI
 const GossipCard = ({ gossip, currentUser, onVote, onDelete, expanded, onToggleExpand, onCommentAdded }) => {
   const [showCommentBox, setShowCommentBox] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
+  const [voteAnimation, setVoteAnimation] = useState(null);
 
   const hasUpvoted = gossip.upvotedBy.includes(currentUser.id);
   const hasDownvoted = gossip.downvotedBy.includes(currentUser.id);
@@ -772,6 +801,12 @@ const GossipCard = ({ gossip, currentUser, onVote, onDelete, expanded, onToggleE
     if (days > 0) return `${days}d remaining`;
     if (hours > 0) return `${hours}h remaining`;
     return 'Expiring soon';
+  };
+
+  const handleVoteClick = (type) => {
+    setVoteAnimation(type);
+    setTimeout(() => setVoteAnimation(null), 300);
+    onVote(gossip.id, hasUpvoted && type === 'up' ? null : hasDownvoted && type === 'down' ? null : type);
   };
 
   const handleAddComment = async () => {
@@ -837,31 +872,108 @@ const GossipCard = ({ gossip, currentUser, onVote, onDelete, expanded, onToggleE
   const commentTree = buildCommentTree(gossip.comments);
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
-      <div className="p-4">
-        {/* Gossip Content */}
-        <div className="mb-3">
-          <div className="flex items-start justify-between mb-2">
-            <span className="text-sm font-medium text-purple-600">
-              👤 {gossip.author}
+    <div className="bg-white rounded-xl border-2 border-gray-200 hover:border-purple-300 hover:shadow-xl transition-all duration-300 overflow-hidden hover-lift">
+      <div className="p-6">
+        {/* Gossip Header */}
+        <div className="flex items-start gap-4 mb-4">
+          <div className="flex flex-col items-center gap-2 min-w-[50px]">
+            <button
+              onClick={() => handleVoteClick('up')}
+              className={`p-2 rounded-lg transition-all transform hover:scale-110 active:scale-95 ${
+                hasUpvoted
+                  ? 'bg-green-500 text-white shadow-lg'
+                  : 'bg-gray-100 text-gray-600 hover:bg-green-50'
+              } ${voteAnimation === 'up' ? 'animate-pulse-slow' : ''}`}
+            >
+              <ThumbsUp className="w-5 h-5" />
+            </button>
+            <span className={`font-bold text-lg ${
+              gossip.upvotes - gossip.downvotes > 0 ? 'text-green-600' : 
+              gossip.upvotes - gossip.downvotes < 0 ? 'text-red-600' : 
+              'text-gray-600'
+            }`}>
+              {gossip.upvotes - gossip.downvotes}
             </span>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-orange-600 flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                {getTimeRemaining()}
-              </span>
-              <span className="text-xs text-gray-400">
-                {new Date(gossip.createdAt).toLocaleString()}
-              </span>
+            <button
+              onClick={() => handleVoteClick('down')}
+              className={`p-2 rounded-lg transition-all transform hover:scale-110 active:scale-95 ${
+                hasDownvoted
+                  ? 'bg-red-500 text-white shadow-lg'
+                  : 'bg-gray-100 text-gray-600 hover:bg-red-50'
+              } ${voteAnimation === 'down' ? 'animate-pulse-slow' : ''}`}
+            >
+              <ThumbsDown className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="flex-1">
+            {/* Author & Time */}
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-bold text-sm">
+                  {gossip.author[0].toUpperCase()}
+                </div>
+                <div>
+                  <span className="text-sm font-semibold text-gray-900">
+                    {gossip.author}
+                  </span>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <span>{new Date(gossip.createdAt).toLocaleString()}</span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1 text-orange-600 font-medium">
+                      <Clock className="w-3 h-3" />
+                      {getTimeRemaining()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              {(isAuthor || isAdmin) && (
+                <button
+                  onClick={() => {
+                    if (window.confirm('Delete this gossip?')) {
+                      onDelete(gossip.id);
+                    }
+                  }}
+                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Delete"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Gossip Content */}
+            <p className="text-gray-900 text-base leading-relaxed mb-4">{gossip.content}</p>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={onToggleExpand}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-50 to-pink-50 text-purple-700 rounded-lg hover:from-purple-100 hover:to-pink-100 transition-all font-medium border border-purple-200"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>{gossip.comments.length} {gossip.comments.length === 1 ? 'Comment' : 'Comments'}</span>
+                {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+              
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <div className="flex items-center gap-1">
+                  <ThumbsUp className="w-4 h-4 text-green-600" />
+                  <span className="font-medium">{gossip.upvotes}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <ThumbsDown className="w-4 h-4 text-red-600" />
+                  <span className="font-medium">{gossip.downvotes}</span>
+                </div>
+              </div>
             </div>
           </div>
-          <p className="text-gray-900 text-base">{gossip.content}</p>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-4">
+        {/* OLD ACTIONS SECTION - REMOVE THIS */}
+        <div className="hidden items-center gap-4">
           <button
-            onClick={() => onVote(gossip.id, hasUpvoted ? null : 'up')}
+            onClick={() => handleVoteClick('up')}
             className={`flex items-center gap-1 px-3 py-1 rounded-lg transition-colors ${
               hasUpvoted
                 ? 'bg-green-100 text-green-700'
@@ -903,49 +1015,69 @@ const GossipCard = ({ gossip, currentUser, onVote, onDelete, expanded, onToggleE
         </div>
       </div>
 
-      {/* Reddit-style Comments Section */}
+      {/* Enhanced Comments Section */}
       {expanded && (
-        <div className="border-t border-gray-200 bg-gray-50">
-          <div className="p-4">
-            {/* Add comment box */}
-            <div className="mb-4">
-              <textarea
-                placeholder="What are your thoughts?"
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
-                rows={3}
-                maxLength={300}
-              />
-              <div className="flex items-center justify-between mt-2">
-                <span className="text-xs text-gray-500">{newComment.length}/300</span>
-                <button
-                  onClick={handleAddComment}
-                  disabled={!newComment.trim() || loading}
-                  className="px-4 py-1.5 bg-blue-500 text-white text-sm font-medium rounded-full hover:bg-blue-600 disabled:opacity-50"
-                >
-                  Comment
-                </button>
+        <div className="border-t-2 border-purple-100 bg-gradient-to-br from-gray-50 to-purple-50/30 animate-scale-in">
+          <div className="p-6">
+            {/* Add comment box with modern styling */}
+            <div className="mb-6">
+              <div className="bg-white rounded-xl border-2 border-gray-200 focus-within:border-purple-400 transition-all shadow-sm hover:shadow-md">
+                <textarea
+                  placeholder="💭 Share your thoughts..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  className="w-full p-4 rounded-t-xl border-none focus:ring-0 resize-none text-sm"
+                  rows={3}
+                  maxLength={300}
+                />
+                <div className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-b-xl border-t border-gray-200">
+                  <span className="text-xs text-gray-500 font-medium">{newComment.length}/300 characters</span>
+                  <button
+                    onClick={handleAddComment}
+                    disabled={!newComment.trim() || loading}
+                    className="px-5 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm font-semibold rounded-lg hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95 ripple"
+                  >
+                    {loading ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Posting...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1">
+                        <Send className="w-4 h-4" />
+                        Comment
+                      </span>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Comments tree */}
-            <div className="space-y-3">
+            {/* Comments tree with enhanced styling */}
+            <div className="space-y-4">
               {commentTree.length === 0 ? (
-                <p className="text-gray-400 text-sm text-center py-4">
-                  No comments yet. Be the first to comment!
-                </p>
+                <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-gray-300">
+                  <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500 font-medium mb-1">No comments yet</p>
+                  <p className="text-gray-400 text-sm">Be the first to share your thoughts!</p>
+                </div>
               ) : (
-                commentTree.map(comment => (
-                  <RedditComment
-                    key={comment.id}
-                    comment={comment}
-                    currentUser={currentUser}
-                    onReply={handleReply}
-                    depth={0}
-                    onCommentAdded={onCommentAdded}
-                  />
-                ))
+                <>
+                  <div className="flex items-center gap-2 text-sm text-gray-600 font-medium mb-2">
+                    <MessageCircle className="w-4 h-4" />
+                    <span>{commentTree.length} {commentTree.length === 1 ? 'Comment' : 'Comments'}</span>
+                  </div>
+                  {commentTree.map(comment => (
+                    <RedditComment
+                      key={comment.id}
+                      comment={comment}
+                      currentUser={currentUser}
+                      onReply={handleReply}
+                      depth={0}
+                      onCommentAdded={onCommentAdded}
+                    />
+                  ))}
+                </>
               )}
             </div>
           </div>
@@ -983,41 +1115,67 @@ const CreateGossipForm = ({ currentUser, onClose, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-gray-900">Share a Gossip</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <X className="w-5 h-5" />
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+      <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl animate-scale-in border-2 border-purple-200">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent flex items-center gap-2">
+              💬 Share a Gossip
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">What's on your mind?</p>
+          </div>
+          <button 
+            onClick={onClose} 
+            className="text-gray-400 hover:text-gray-700 hover:bg-gray-100 p-2 rounded-lg transition-all"
+          >
+            <X className="w-6 h-6" />
           </button>
         </div>
 
-        <textarea
-          placeholder="What's the tea? ☕ (Max 500 characters)"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent mb-3"
-          rows={6}
-          maxLength={500}
-          autoFocus
-        />
-        <div className="text-xs text-gray-500 mb-4">
-          {content.length}/500 characters • Posted as @{currentUser.username}
+        <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-1 mb-4">
+          <textarea
+            placeholder="What's the tea? ☕ Share something interesting..."
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            className="w-full p-4 border-2 border-transparent rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-400 transition-all resize-none"
+            rows={6}
+            maxLength={500}
+            autoFocus
+          />
+        </div>
+        
+        <div className="flex items-center justify-between text-xs text-gray-600 mb-6 px-1">
+          <span className="flex items-center gap-2">
+            <span className={`font-medium ${content.length > 450 ? 'text-orange-600' : 'text-gray-500'}`}>
+              {content.length}/500 characters
+            </span>
+          </span>
+          <span className="text-purple-600 font-medium">Posted as @{currentUser.username}</span>
         </div>
 
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            className="flex-1 px-6 py-3 text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all font-medium hover:shadow-md"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={!content.trim() || loading}
-            className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-colors disabled:opacity-50"
+            className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold transform hover:scale-105 active:scale-95 ripple"
           >
-            {loading ? 'Posting...' : 'Post Gossip'}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Posting...
+              </span>
+            ) : (
+              <span className="flex items-center justify-center gap-2">
+                <Send className="w-5 h-5" />
+                Post Gossip
+              </span>
+            )}
           </button>
         </div>
       </div>

@@ -6,7 +6,8 @@
 // import LoginPage from './components/LoginPage';
 // import { io } from 'socket.io-client';
 // import GossipsPage from './components/GossipsPage';
-// const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// Use environment variable for backend URL. If not provided, the app will
+// fall back to a relative origin so Vite can proxy requests during dev.
 
 // // Helper functions
 // const formatTime = (dateString) => {
@@ -1326,14 +1327,15 @@
 
 //2 with improved ui
 import React, { useState, useEffect, useRef } from 'react';
-import { Clock, Users, MapPin, MessageCircle, Plus, X, Check, Hash, Calendar, Send, LogOut, User, Shield, Trash2, Eye, MessageSquare, Moon, Sun } from 'lucide-react';
+import { Clock, Users, MapPin, MessageCircle, Plus, X, Check, Hash, Calendar, Send, LogOut, User, Shield, Trash2, Eye, MessageSquare, Moon, Sun, Bell, Sparkles, ArrowUpDown, TrendingUp, TrendingDown, Zap } from 'lucide-react';
 import { authAPI, threadsAPI, adminAPI } from './services/api';
 import LoginPage from './components/LoginPage';
 import GossipsPage from './components/GossipsPage';
+import MobileRouter from './components/mobile/MobileRouter';
 import { io } from 'socket.io-client';
 import { useTheme } from './context/ThemeContext';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const SOCKET_URL = import.meta.env.VITE_API_URL || '';
 
 // Helper functions
 const formatTime = (dateString) => {
@@ -1368,8 +1370,16 @@ function App() {
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const chatEndRef = useRef(null);
   const socketRef = useRef(null);
+
+  // Responsive breakpoint listener
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Request notification permission on login
   useEffect(() => {
@@ -1402,6 +1412,14 @@ function App() {
     { id: 'fitness', label: '💪 Fitness', icon: Users },
     { id: 'gaming', label: '🎮 Gaming', icon: Users },
     { id: 'other', label: '✨ Other', icon: Users }
+  ];
+
+  const sortOptions = [
+    { id: 'newest', label: 'Newest', icon: TrendingUp },
+    { id: 'oldest', label: 'Oldest', icon: TrendingDown },
+    { id: 'mostMembers', label: 'Most Members', icon: Users },
+    { id: 'expiringSoon', label: 'Expiring Soon', icon: Zap },
+    { id: 'mostActive', label: 'Most Active', icon: MessageCircle }
   ];
 
   // Initialize Socket.io
@@ -2336,6 +2354,89 @@ function App() {
   if (showAdminDashboard) return <AdminDashboard />;
   if (showGossips) return <GossipsPage currentUser={currentUser} socketRef={socketRef} onBack={() => setShowGossips(false)} />;
 
+  // Mobile-first responsive routing
+  if (isMobile) {
+    // Show chat view if thread is selected
+    if (selectedThread) {
+      return <ChatView />;
+    }
+    
+    // Show gossips page
+    if (showGossips) {
+      return <GossipsPage currentUser={currentUser} socketRef={socketRef} onBack={() => setShowGossips(false)} />;
+    }
+    
+    // Main mobile router with page navigation
+    return (
+      <MobileRouter
+        currentUser={currentUser}
+        threads={threads}
+        categories={categories}
+        filterCategory={filterCategory}
+        onCategoryChange={setFilterCategory}
+        getTimeRemaining={getTimeRemaining}
+        onThreadClick={(thread) => setSelectedThread(thread)}
+        onActionClick={async (thread) => {
+          const isCreator = thread.creatorId === currentUser.id;
+          const isMember = thread.members.includes(currentUser.id);
+          const hasPendingRequest = thread.pendingRequests.includes(currentUser.id);
+          
+          if (isCreator && thread.pendingRequests.length > 0) {
+            // Open thread to review requests
+            setSelectedThread(thread);
+          } else if (isMember) {
+            // Open chat
+            setSelectedThread(thread);
+          } else if (!hasPendingRequest) {
+            // Send join request
+            setThreads(prevThreads => 
+              prevThreads.map(t => 
+                t.id === thread.id 
+                  ? { ...t, pendingRequests: [...t.pendingRequests, currentUser.id] }
+                  : t
+              )
+            );
+
+            try {
+              await threadsAPI.requestJoin(thread.id, currentUser.id);
+              loadThreads();
+            } catch (error) {
+              alert('Error sending join request');
+              loadThreads();
+            }
+          }
+        }}
+        onCreateThread={async (formData) => {
+          // Combine category with custom tags
+          const allTags = [formData.category];
+          if (formData.tags.trim()) {
+            allTags.push(...formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag));
+          }
+
+          const threadData = {
+            title: formData.title,
+            description: formData.description,
+            creator: currentUser.username,
+            creatorId: currentUser.id,
+            location: formData.location,
+            tags: allTags,
+            expiresAt: new Date(Date.now() + parseInt(formData.duration) * 60 * 60 * 1000).toISOString()
+          };
+
+          const result = await threadsAPI.create(threadData);
+          if (result.data.success) {
+            await loadThreads();
+          }
+        }}
+        onLogout={() => {
+          setCurrentUser(null);
+          setShowLoginForm(true);
+        }}
+      />
+    );
+  }
+
+  // Desktop layout (existing code)
   return (
     <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'dark bg-gray-900' : 'bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50'}`}>
       <header className={`shadow-lg border-b transition-colors duration-300 ${
@@ -2429,10 +2530,15 @@ function App() {
               )}
               <button
                 onClick={() => {
-                  setCurrentUser(null);
-                  setShowLoginForm(true);
+                  if (window.confirm('Are you sure you want to logout? You will be redirected to the login page.')) {
+                    setCurrentUser(null);
+                    setShowLoginForm(true);
+                    setSelectedThread(null);
+                    setShowGossips(false);
+                  }
                 }}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                title="Logout"
               >
                 <LogOut className="w-5 h-5" />
               </button>
@@ -2440,42 +2546,101 @@ function App() {
           </div>
         </div>
       </header>
-      <main className="max-w-4xl mx-auto px-4 py-6">
-        <div className="mb-6">
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-          >
-            <Plus className="w-5 h-5" />
-            Create Event Thread
-          </button>
+      
+      {/* Professional Hero Section */}
+      <div className={`${isDark ? 'bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900' : 'bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50'} border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+            {/* Left: Welcome Message */}
+            <div className="flex-1 animate-slide-in">
+              <h2 className={`text-4xl font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Welcome back, <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{currentUser.username}</span>! 👋
+              </h2>
+              <p className={`text-lg mb-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                Discover and join temporary event threads that match your interests
+              </p>
+              
+              {/* Quick Stats */}
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className={`${isDark ? 'bg-gray-800/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${isDark ? 'border-gray-700' : 'border-gray-200'} hover-lift`}>
+                  <div className={`text-2xl font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+                    {threads.length}
+                  </div>
+                  <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Active Threads</div>
+                </div>
+                <div className={`${isDark ? 'bg-gray-800/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${isDark ? 'border-gray-700' : 'border-gray-200'} hover-lift`}>
+                  <div className={`text-2xl font-bold ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                    {threads.filter(t => t.members.includes(currentUser.id)).length}
+                  </div>
+                  <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Your Threads</div>
+                </div>
+                <div className={`${isDark ? 'bg-gray-800/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${isDark ? 'border-gray-700' : 'border-gray-200'} hover-lift`}>
+                  <div className={`text-2xl font-bold ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>
+                    {threads.filter(t => t.creatorId === currentUser.id).length}
+                  </div>
+                  <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Created</div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Right: Quick Actions */}
+            <div className="flex flex-col gap-3 animate-fade-in">
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all font-semibold shadow-2xl hover:shadow-blue-500/50 transform hover:scale-105 hover:-translate-y-1 ripple"
+              >
+                <Plus className="w-6 h-6" />
+                <span>Create Event Thread</span>
+              </button>
+              
+              <button
+                onClick={() => setShowGossips(true)}
+                className={`flex items-center gap-3 px-8 py-4 rounded-xl font-semibold transition-all shadow-xl transform hover:scale-105 hover:-translate-y-1 ${
+                  isDark
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
+                    : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white hover:shadow-purple-500/50'
+                }`}
+              >
+                <MessageSquare className="w-6 h-6" />
+                <span>Browse Gossips</span>
+              </button>
+            </div>
+          </div>
         </div>
+      </div>
 
-        {/* Filter and Sort Bar */}
-        <div className="mb-6 space-y-4">
+      <main className="max-w-6xl mx-auto px-4 py-8">
+        {/* Filter and Sort Bar - Professional Design */}
+        <div className="mb-8 space-y-6 animate-fade-in">
           {/* Category Filter */}
-          <div className={`rounded-xl border transition-all shadow-lg ${
+          <div className={`rounded-2xl border transition-all shadow-xl ${
             isDark 
-              ? 'bg-gray-800/50 backdrop-blur-lg border-gray-700' 
-              : 'bg-white/80 backdrop-blur-lg border-gray-200'
+              ? 'bg-gray-800/70 backdrop-blur-xl border-gray-700' 
+              : 'bg-white/90 backdrop-blur-xl border-gray-200'
           }`}>
-            <div className="p-4">
-              <h3 className={`text-sm font-semibold mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Categories
-              </h3>
-              <div className="flex flex-wrap gap-2">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className={`text-lg font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  <Hash className="w-5 h-5" />
+                  Filter by Category
+                </h3>
+                <span className={`text-sm px-3 py-1 rounded-full ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                  {getFilteredAndSortedThreads().length} threads
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-3">
                 {categories.map(cat => (
                   <button
                     key={cat.id}
                     onClick={() => setFilterCategory(cat.id)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                    className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all transform hover:scale-105 ${
                       filterCategory === cat.id
                         ? isDark
-                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/50'
-                          : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-2xl shadow-blue-500/50'
+                          : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-2xl shadow-blue-500/30'
                         : isDark
-                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 border border-gray-600'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
                     }`}
                   >
                     {cat.label}
@@ -2485,38 +2650,34 @@ function App() {
             </div>
           </div>
 
-          {/* Sort Options */}
-          <div className={`rounded-xl border transition-all shadow-lg ${
+          {/* Sort Options - Modern Card Design */}
+          <div className={`rounded-2xl border transition-all shadow-xl ${
             isDark 
-              ? 'bg-gray-800/50 backdrop-blur-lg border-gray-700' 
-              : 'bg-white/80 backdrop-blur-lg border-gray-200'
+              ? 'bg-gray-800/70 backdrop-blur-xl border-gray-700' 
+              : 'bg-white/90 backdrop-blur-xl border-gray-200'
           }`}>
-            <div className="p-4">
-              <h3 className={`text-sm font-semibold mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Sort By
+            <div className="p-6">
+              <h3 className={`text-lg font-bold flex items-center gap-2 mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                <ArrowUpDown className="w-5 h-5" />
+                Sort Threads
               </h3>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { id: 'newest', label: '🆕 Newest First' },
-                  { id: 'oldest', label: '⏰ Oldest First' },
-                  { id: 'mostMembers', label: '👥 Most Members' },
-                  { id: 'expiringSoon', label: '⚡ Expiring Soon' },
-                  { id: 'mostActive', label: '💬 Most Active' }
-                ].map(sort => (
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                {sortOptions.map(opt => (
                   <button
-                    key={sort.id}
-                    onClick={() => setSortBy(sort.id)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                      sortBy === sort.id
+                    key={opt.id}
+                    onClick={() => setSortBy(opt.id)}
+                    className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition-all transform hover:scale-105 ${
+                      sortBy === opt.id
                         ? isDark
-                          ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/50'
-                          : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
+                          ? 'bg-gradient-to-br from-green-600 to-teal-600 text-white shadow-2xl shadow-green-500/50'
+                          : 'bg-gradient-to-br from-green-600 to-teal-600 text-white shadow-2xl shadow-green-500/30'
                         : isDark
-                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 border border-gray-600'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
                     }`}
                   >
-                    {sort.label}
+                    {opt.icon && <opt.icon className="w-4 h-4" />}
+                    {opt.label}
                   </button>
                 ))}
               </div>
@@ -2524,97 +2685,148 @@ function App() {
           </div>
         </div>
 
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            {filterCategory === 'all' ? 'All Threads' : `${categories.find(c => c.id === filterCategory)?.label} Threads`} ({getFilteredAndSortedThreads().length})
+        {/* Threads Section Header */}
+        <div className="mb-6 flex items-center justify-between animate-fade-in">
+          <h2 className={`text-2xl font-bold flex items-center gap-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <Sparkles className="w-7 h-7 text-yellow-500" />
+            {filterCategory === 'all' ? 'All Event Threads' : `${categories.find(c => c.id === filterCategory)?.label} Threads`}
+            <span className={`text-lg px-3 py-1 rounded-full ${isDark ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-600'}`}>
+              {getFilteredAndSortedThreads().length}
+            </span>
           </h2>
-          {getFilteredAndSortedThreads().length === 0 ? (
-            <div className="text-center py-12">
-              <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No active threads</h3>
-              <p className="text-gray-600 mb-4">Be the first to create an event thread!</p>
+        </div>
+        
+        {/* Empty State or Thread List */}
+        {getFilteredAndSortedThreads().length === 0 ? (
+          <div className={`text-center py-20 rounded-2xl border ${isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-white/80 border-gray-200'} animate-fade-in`}>
+            <div className="max-w-md mx-auto">
+              <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                <Calendar className={`w-12 h-12 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+              </div>
+              <h3 className={`text-2xl font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                No Active Threads Yet
+              </h3>
+              <p className={`text-lg mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                Be the first to create an event thread and start connecting!
+              </p>
               <button
                 onClick={() => setShowCreateForm(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all font-semibold shadow-2xl transform hover:scale-105 inline-flex items-center gap-2"
               >
-                Create Thread
+                <Plus className="w-5 h-5" />
+                Create Your First Thread
               </button>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {getFilteredAndSortedThreads().map(thread => {
-                const isCreator = thread.creatorId === currentUser.id;
-                const isMember = thread.members.includes(currentUser.id);
-                const hasPendingRequest = thread.pendingRequests.includes(currentUser.id);
-                const hasPendingRequests = isCreator && thread.pendingRequests.length > 0;
-                return (
-                  <div key={thread.id} className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 mb-1">{thread.title}</h3>
-                        <p className="text-gray-600 text-sm mb-2">{thread.description}</p>
-                        <div className="flex items-center gap-4 text-sm text-gray-500 mb-2">
-                          <div className="flex items-center gap-1">
-                            <User className="w-4 h-4" />
-                            <span>{thread.creator}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-4 h-4" />
-                            <span>{thread.location}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            <span>{getTimeRemaining(thread.expiresAt)}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 mb-3">
-                          <Users className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-600">{thread.members.length} members</span>
-                          {hasPendingRequests && (
-                            <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full">
-                              {thread.pendingRequests.length} pending
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap gap-1 mb-3">
-                          {thread.tags.map(tag => (
-                            <span key={tag} className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                              <Hash className="w-3 h-3" />
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {getFilteredAndSortedThreads().map(thread => {
+              const isCreator = thread.creatorId === currentUser.id;
+              const isMember = thread.members.includes(currentUser.id);
+              const hasPendingRequest = thread.pendingRequests.includes(currentUser.id);
+              const hasPendingRequests = isCreator && thread.pendingRequests.length > 0;
+              
+              return (
+                <div 
+                  key={thread.id} 
+                  className={`rounded-2xl border transition-all hover-lift shadow-xl overflow-hidden animate-fade-in ${
+                    isDark 
+                      ? 'bg-gray-800/70 backdrop-blur-xl border-gray-700' 
+                      : 'bg-white/90 backdrop-blur-xl border-gray-200'
+                  }`}
+                >
+                  {/* Card Header with Gradient */}
+                  <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4">
+                    <h3 className="font-bold text-white text-xl mb-1">{thread.title}</h3>
+                    <p className="text-blue-100 text-sm">{thread.description}</p>
+                  </div>
+                  
+                  {/* Card Body */}
+                  <div className="p-5">
+                    {/* Thread Metadata */}
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                        <User className="w-4 h-4 text-blue-500" />
+                        <span className="truncate">{thread.creator}</span>
+                      </div>
+                      <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                        <MapPin className="w-4 h-4 text-red-500" />
+                        <span className="truncate">{thread.location}</span>
+                      </div>
+                      <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                        <Clock className="w-4 h-4 text-yellow-500" />
+                        <span>{getTimeRemaining(thread.expiresAt)}</span>
+                      </div>
+                      <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                        <Users className="w-4 h-4 text-green-500" />
+                        <span>{thread.members.length} members</span>
                       </div>
                     </div>
                     
-                    <div className="flex gap-2">
+                    {/* Pending Requests Badge */}
+                    {hasPendingRequests && (
+                      <div className="mb-4 px-3 py-2 bg-orange-100 border border-orange-300 rounded-lg flex items-center gap-2">
+                        <Bell className="w-4 h-4 text-orange-600" />
+                        <span className="text-sm text-orange-800 font-semibold">
+                          {thread.pendingRequests.length} pending request{thread.pendingRequests.length > 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Tags */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {thread.tags.map(tag => (
+                        <span 
+                          key={tag} 
+                          className={`inline-flex items-center gap-1 text-xs px-3 py-1 rounded-full font-medium ${
+                            isDark 
+                              ? 'bg-blue-900/50 text-blue-300 border border-blue-700' 
+                              : 'bg-blue-50 text-blue-700 border border-blue-200'
+                          }`}
+                        >
+                          <Hash className="w-3 h-3" />
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 flex-wrap">
                       {isCreator && (
                         <button
                           onClick={() => {
                             setEditingThread(thread);
                             setShowEditForm(true);
                           }}
-                          className="px-3 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors text-sm"
+                          className={`px-4 py-2.5 rounded-xl font-semibold transition-all transform hover:scale-105 border ${
+                            isDark
+                              ? 'bg-gray-700 text-blue-400 border-blue-700 hover:bg-gray-600'
+                              : 'bg-white text-blue-600 border-blue-600 hover:bg-blue-50'
+                          }`}
                         >
-                          Edit
+                          Edit Thread
                         </button>
                       )}
+                      
                       {isMember ? (
                         <button
                           onClick={() => setSelectedThread(thread)}
-                          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex-1"
+                          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-xl hover:from-green-700 hover:to-teal-700 transition-all flex-1 font-semibold shadow-xl transform hover:scale-105 justify-center"
                         >
                           <MessageCircle className="w-4 h-4" />
-                          Chat ({thread.chat.length})
+                          Open Chat ({thread.chat.length})
                         </button>
                       ) : hasPendingRequest ? (
-                        <button className="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg flex-1 cursor-not-allowed">
+                        <button 
+                          className="px-4 py-2.5 bg-yellow-100 text-yellow-800 rounded-xl flex-1 cursor-not-allowed font-semibold border border-yellow-300"
+                          disabled
+                        >
+                          <Clock className="w-4 h-4 inline mr-2" />
                           Request Pending...
                         </button>
                       ) : (
                         <button
                           onClick={async () => {
-                            // Optimistic update
                             setThreads(prevThreads => 
                               prevThreads.map(t => 
                                 t.id === thread.id 
@@ -2628,31 +2840,31 @@ function App() {
                               loadThreads();
                             } catch (error) {
                               alert('Error sending join request');
-                              // Revert optimistic update on error
                               loadThreads();
                             }
                           }}
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex-1"
+                          className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all flex-1 font-semibold shadow-xl transform hover:scale-105 justify-center"
                         >
                           <Plus className="w-4 h-4" />
                           Request to Join
                         </button>
                       )}
+                      
                       {hasPendingRequests && (
                         <button
                           onClick={() => setSelectedThread(thread)}
-                          className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                          className="px-4 py-2.5 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-xl hover:from-orange-700 hover:to-red-700 transition-all font-semibold shadow-xl transform hover:scale-105"
                         >
                           Review Requests
                         </button>
                       )}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </main>
       {showCreateForm && <CreateThreadForm />}
       {showEditForm && <EditThreadForm />}
