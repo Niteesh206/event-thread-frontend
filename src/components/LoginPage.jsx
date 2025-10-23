@@ -472,7 +472,7 @@ const LoginPage = ({ onLogin, onRegister }) => {
                     value={username}
                     onChange={(e) => handleInputChange('username', e.target.value)}
                     onBlur={() => handleBlur('username')}
-                    className={`w-full px-4 py-3 pr-10 border rounded-lg focus:ring-2 focus:border-transparent transition-all bg-white/10 backdrop-blur-sm text-white placeholder-white/50 ${
+                    className={`w-full px-4 py-3 pr-10 border rounded-lg focus:ring-2 focus:border-transparent transition-all bg-white/90 backdrop-blur-sm text-gray-900 placeholder-gray-500 ${
                       getFieldStatus('username') === 'error' 
                         ? 'border-red-400 focus:ring-red-400' 
                         : getFieldStatus('username') === 'success'
@@ -510,7 +510,7 @@ const LoginPage = ({ onLogin, onRegister }) => {
                     value={password}
                     onChange={(e) => handleInputChange('password', e.target.value)}
                     onBlur={() => handleBlur('password')}
-                    className={`w-full px-4 py-3 pr-20 border rounded-lg focus:ring-2 focus:border-transparent transition-all bg-white/10 backdrop-blur-sm text-white placeholder-white/50 ${
+                    className={`w-full px-4 py-3 pr-20 border rounded-lg focus:ring-2 focus:border-transparent transition-all bg-white/90 backdrop-blur-sm text-gray-900 placeholder-gray-500 ${
                       getFieldStatus('password') === 'error' 
                         ? 'border-red-400 focus:ring-red-400' 
                         : getFieldStatus('password') === 'success'
@@ -533,7 +533,7 @@ const LoginPage = ({ onLogin, onRegister }) => {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="text-white/60 hover:text-white transition-colors p-1"
+                      className="text-gray-600 hover:text-gray-900 transition-colors p-1"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                       tabIndex={-1}
                     >

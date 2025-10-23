@@ -1361,7 +1361,7 @@ function App() {
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   const [showGossips, setShowGossips] = useState(false);
   const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Start with loading true
   const [adminData, setAdminData] = useState(null);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingThread, setEditingThread] = useState(null);
@@ -1373,6 +1373,22 @@ function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const chatEndRef = useRef(null);
   const socketRef = useRef(null);
+
+  // Check for existing session on mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem('currentUser');
+    if (storedUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        setCurrentUser(user);
+        setShowLoginForm(false);
+      } catch (error) {
+        console.error('Error parsing stored user:', error);
+        localStorage.removeItem('currentUser');
+      }
+    }
+    setLoading(false);
+  }, []);
 
   // Responsive breakpoint listener
   useEffect(() => {
@@ -1423,6 +1439,8 @@ function App() {
   ];
 
   // Initialize Socket.io
+  // Backend requirement: Server should emit 'new-thread-created' event with data:
+  // { threadId, title, creator, creatorId } when a new thread is created
   useEffect(() => {
     if (currentUser && !showLoginForm) {
       socketRef.current = io(SOCKET_URL, {
@@ -1438,6 +1456,31 @@ function App() {
         loadThreads();
       });
 
+      // Listen for new thread creation notifications
+      socketRef.current.on('new-thread-created', (data) => {
+        console.log('🎉 New thread created:', data);
+        
+        // Show notification if enabled and user is not the creator
+        if (notificationsEnabled && data.creatorId !== currentUser.id) {
+          const notification = new Notification('🎉 New Event Thread!', {
+            body: `${data.creator} created: "${data.title}"`,
+            icon: '/vite.svg',
+            tag: `thread-${data.threadId}`,
+            requireInteraction: false
+          });
+
+          notification.onclick = () => {
+            window.focus();
+            // Load threads to show the new one
+            loadThreads();
+            notification.close();
+          };
+        }
+        
+        // Refresh threads list
+        loadThreads();
+      });
+
       socketRef.current.on('disconnect', () => {
         console.log('❌ Socket disconnected');
       });
@@ -1448,7 +1491,7 @@ function App() {
         }
       };
     }
-  }, [currentUser, showLoginForm]);
+  }, [currentUser, showLoginForm, notificationsEnabled]);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -1544,8 +1587,11 @@ function App() {
     try {
       const response = await authAPI.login(username, password, isAdmin);
       if (response.data.success) {
-        setCurrentUser(response.data.user);
+        const user = response.data.user;
+        setCurrentUser(user);
         setShowLoginForm(false);
+        // Save user to localStorage for persistent session
+        localStorage.setItem('currentUser', JSON.stringify(user));
       } else {
         throw new Error(response.data.message);
       }
@@ -1558,8 +1604,26 @@ function App() {
     try {
       const response = await authAPI.register(username, password);
       if (response.data.success) {
-        setCurrentUser(response.data.user);
+        const user = response.data.user;
+        setCurrentUser(user);
         setShowLoginForm(false);
+        // Save user to localStorage for persistent session
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        
+        // Request notification permission immediately after registration
+        if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+          setTimeout(() => {
+            Notification.requestPermission().then(permission => {
+              if (permission === 'granted') {
+                setNotificationsEnabled(true);
+                new Notification('Welcome to Prastha! 🎉', {
+                  body: 'You\'ll receive notifications when new event threads are created.',
+                  icon: '/vite.svg'
+                });
+              }
+            });
+          }, 1000); // Delay by 1 second to let user see the main UI first
+        }
       } else {
         throw new Error(response.data.message);
       }
@@ -2349,6 +2413,18 @@ function App() {
     );
   };
 
+  // Show loading while checking for existing session
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading Prastha...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Main render
   if (showLoginForm) return <LoginPage onLogin={handleLogin} onRegister={handleRegister} />;
   if (showAdminDashboard) return <AdminDashboard />;
@@ -2431,7 +2507,10 @@ function App() {
         onLogout={() => {
           setCurrentUser(null);
           setShowLoginForm(true);
+          // Clear localStorage on logout
+          localStorage.removeItem('currentUser');
         }}
+        socketRef={socketRef}
       />
     );
   }
@@ -2539,6 +2618,8 @@ function App() {
                     setShowLoginForm(true);
                     setSelectedThread(null);
                     setShowGossips(false);
+                    // Clear localStorage on logout
+                    localStorage.removeItem('currentUser');
                   }
                 }}
                 className="text-gray-500 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"

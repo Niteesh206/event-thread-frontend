@@ -719,7 +719,7 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
                     placeholder={`Reply to ${comment.author}...`}
-                    className="w-full p-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent resize-none"
+                    className="w-full p-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 placeholder-gray-500"
                     rows={3}
                     maxLength={300}
                   />
@@ -1026,7 +1026,7 @@ const GossipCard = ({ gossip, currentUser, onVote, onDelete, expanded, onToggleE
                   placeholder="💭 Share your thoughts..."
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  className="w-full p-4 rounded-t-xl border-none focus:ring-0 resize-none text-sm"
+                  className="w-full p-4 rounded-t-xl border-none focus:ring-0 resize-none text-sm text-gray-900 placeholder-gray-500"
                   rows={3}
                   maxLength={300}
                 />
@@ -1137,7 +1137,7 @@ const CreateGossipForm = ({ currentUser, onClose, onSuccess }) => {
             placeholder="What's the tea? ☕ Share something interesting..."
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="w-full p-4 border-2 border-transparent rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-400 transition-all resize-none"
+            className="w-full p-4 border-2 border-transparent rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-400 transition-all resize-none text-gray-900 placeholder-gray-500"
             rows={6}
             maxLength={500}
             autoFocus

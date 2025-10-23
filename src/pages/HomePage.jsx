@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, TrendingUp, Users, Clock } from 'lucide-react';
+import { Sparkles, TrendingUp, Users, Clock, Search } from 'lucide-react';
 import BottomNav from '../components/ui/BottomNav';
 import HeroCard from '../components/ui/HeroCard';
 import StatsCard from '../components/ui/StatsCard';
@@ -15,6 +15,7 @@ import EmptyState from '../components/ui/EmptyState';
  */
 const HomePage = ({ currentUser, threads, categories, filterCategory, onCategoryChange, getTimeRemaining, onThreadClick, onActionClick }) => {
   const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Calculate stats
   const stats = {
@@ -23,8 +24,17 @@ const HomePage = ({ currentUser, threads, categories, filterCategory, onCategory
     created: threads.filter(t => t.creatorId === currentUser?.id).length
   };
 
+  // Filter threads based on search query
+  const filteredThreads = searchQuery.trim()
+    ? threads.filter(thread =>
+        thread.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        thread.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        thread.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    : threads;
+
   // Get recent threads (limit to 5)
-  const recentThreads = threads
+  const recentThreads = filteredThreads
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 5);
 
@@ -71,6 +81,28 @@ const HomePage = ({ currentUser, threads, categories, filterCategory, onCategory
         </HeroCard>
       </div>
 
+      {/* Search Bar */}
+      <div className="px-4 mb-4">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search threads, tags, or locations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Category Filter */}
       <div className="px-4 mb-4">
         <div className="flex items-center justify-between mb-3">
@@ -103,7 +135,7 @@ const HomePage = ({ currentUser, threads, categories, filterCategory, onCategory
       <div className="px-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Recent Threads
+            {searchQuery ? `Search Results (${filteredThreads.length})` : 'Recent Threads'}
           </h2>
           <button
             onClick={() => navigate('/explore')}
@@ -116,11 +148,11 @@ const HomePage = ({ currentUser, threads, categories, filterCategory, onCategory
         <div className="space-y-3">
           {recentThreads.length === 0 ? (
             <EmptyState
-              icon="📅"
-              title="No Threads Yet"
-              description="Be the first to create an event thread in your community!"
-              actionLabel="Create Thread"
-              onAction={() => navigate('/create')}
+              icon={searchQuery ? "�" : "�📅"}
+              title={searchQuery ? "No Results Found" : "No Threads Yet"}
+              description={searchQuery ? `No threads match "${searchQuery}". Try different keywords.` : "Be the first to create an event thread in your community!"}
+              actionLabel={searchQuery ? "Clear Search" : "Create Thread"}
+              onAction={() => searchQuery ? setSearchQuery('') : navigate('/create')}
             />
           ) : (
             recentThreads.map((thread) => (

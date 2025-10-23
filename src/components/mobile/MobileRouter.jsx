@@ -5,6 +5,7 @@ import ExplorePage from '../../pages/ExplorePage';
 import CreatePage from '../../pages/CreatePage';
 import AlertsPage from '../../pages/AlertsPage';
 import ProfilePage from '../../pages/ProfilePage';
+import GossipsPage from '../GossipsPage';
 
 /**
  * MobileRouter - React Router setup for mobile pages
@@ -20,7 +21,8 @@ const MobileRouter = ({
   onThreadClick,
   onActionClick,
   onCreateThread,
-  onLogout
+  onLogout,
+  socketRef
 }) => {
   return (
     <BrowserRouter>
@@ -55,6 +57,17 @@ const MobileRouter = ({
               getTimeRemaining={getTimeRemaining}
               onThreadClick={onThreadClick}
               onActionClick={onActionClick}
+            />
+          }
+        />
+        
+        <Route
+          path="/gossips"
+          element={
+            <GossipsPage
+              currentUser={currentUser}
+              socketRef={socketRef}
+              onBack={() => window.history.back()}
             />
           }
         />

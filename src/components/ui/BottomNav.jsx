@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Compass, Plus, Bell, User } from 'lucide-react';
+import { Home, MessageSquare, Plus, Bell, User } from 'lucide-react';
 
 /**
  * BottomNav - Persistent bottom navigation bar
@@ -12,7 +12,7 @@ const BottomNav = ({ notificationCount = 0 }) => {
 
   const tabs = [
     { id: 'home', label: 'Home', icon: Home, path: '/home' },
-    { id: 'explore', label: 'Explore', icon: Compass, path: '/explore' },
+    { id: 'gossips', label: 'Gossips', icon: MessageSquare, path: '/gossips' },
     { id: 'create', label: 'Create', icon: Plus, path: '/create', isPrimary: true },
     { id: 'alerts', label: 'Alerts', icon: Bell, path: '/alerts', badge: notificationCount },
     { id: 'profile', label: 'Profile', icon: User, path: '/profile' }
