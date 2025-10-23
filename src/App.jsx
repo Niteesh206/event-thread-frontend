@@ -1335,6 +1335,21 @@ import MobileRouter from './components/mobile/MobileRouter';
 import { io } from 'socket.io-client';
 import { useTheme } from './context/ThemeContext';
 
+// remove bidi / directionality chars and normalize
+const cleanBidi = (s = '') =>
+  String(s)
+    .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, '')
+    .normalize('NFC')
+    .trim();
+
+const ALERT_PRESETS = [
+  'Urgent update: Please assemble in 10 minutes.',
+  'Schedule change: Event starting immediately.',
+  'Reminder: Check the event chat right away.',
+  'Emergency: Contact the organizer ASAP.',
+  'Weather alert: Move indoors now.'
+];
+
 const SOCKET_URL = import.meta.env.VITE_API_URL || '';
 
 // Helper functions
@@ -1847,7 +1862,7 @@ function App() {
                 placeholder="e.g., Coffee & Code meetup"
                 value={formData.title}
                 onChange={(e) => setFormData({...formData, title: e.target.value})}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
               />
             </div>
             <div className="mb-4">
@@ -1856,7 +1871,7 @@ function App() {
                 placeholder="What's this event about?"
                 value={formData.description}
                 onChange={(e) => setFormData({...formData, description: e.target.value})}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
                 rows={3}
               />
             </div>
@@ -1867,7 +1882,7 @@ function App() {
                 placeholder="e.g., Starbucks Downtown"
                 value={formData.location}
                 onChange={(e) => setFormData({...formData, location: e.target.value})}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
               />
             </div>
             <div className="mb-4">
@@ -1875,7 +1890,7 @@ function App() {
               <select
                 value={formData.category}
                 onChange={(e) => setFormData({...formData, category: e.target.value})}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
               >
                 {categories.filter(c => c.id !== 'all').map(cat => (
                   <option key={cat.id} value={cat.id}>{cat.label}</option>
@@ -1889,7 +1904,7 @@ function App() {
                 placeholder="e.g., beginner-friendly, casual (comma separated)"
                 value={formData.tags}
                 onChange={(e) => setFormData({...formData, tags: e.target.value})}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
               />
             </div>
             <div className="mb-6">
@@ -1897,7 +1912,7 @@ function App() {
               <select
                 value={formData.duration}
                 onChange={(e) => setFormData({...formData, duration: e.target.value})}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
               >
                 <option value="1">1 hour</option>
                 <option value="2">2 hours</option>
@@ -1982,7 +1997,7 @@ function App() {
                 placeholder="e.g., Coffee & Code meetup"
                 value={formData.title}
                 onChange={(e) => setFormData({...formData, title: e.target.value})}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
               />
             </div>
             
@@ -1992,7 +2007,7 @@ function App() {
                 placeholder="What's this event about?"
                 value={formData.description}
                 onChange={(e) => setFormData({...formData, description: e.target.value})}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
                 rows={3}
               />
             </div>
@@ -2004,7 +2019,7 @@ function App() {
                 placeholder="e.g., Starbucks Downtown"
                 value={formData.location}
                 onChange={(e) => setFormData({...formData, location: e.target.value})}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
               />
             </div>
             
@@ -2015,7 +2030,7 @@ function App() {
                 placeholder="coffee, coding, social (comma separated)"
                 value={formData.tags}
                 onChange={(e) => setFormData({...formData, tags: e.target.value})}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
               />
             </div>
             
@@ -2059,6 +2074,11 @@ function App() {
         const handleNewMessage = (message) => {
           console.log('📨 New message received:', message);
           
+          // Sanitize message text to prevent bidi control issues
+          if (message.message) {
+            message.message = cleanBidi(message.message);
+          }
+          
           // Add message to chat
           setSelectedThread(prev => ({
             ...prev,
@@ -2075,9 +2095,9 @@ function App() {
               if (Notification.permission === 'granted') {
                 console.log('✅ Showing notification...');
                 
-                // Create notification
+                // Create notification with LTR mark to force left-to-right text
                 const notification = new Notification(`🚨 Alert from ${selectedThread.title}`, {
-                  body: message.message,  // Use the clean message directly
+                  body: `\u202A${cleanBidi(message.message)}`,  // Add LTR embedding to ensure proper direction
                   icon: '/vite.svg',
                   badge: '/vite.svg',
                   tag: `alert-${message.id}`,
@@ -2097,7 +2117,7 @@ function App() {
                 Notification.requestPermission().then(permission => {
                   if (permission === 'granted') {
                     new Notification(`🚨 Alert from ${selectedThread.title}`, {
-                      body: message.message,
+                      body: `\u202A${cleanBidi(message.message)}`,  // Add LTR embedding
                       icon: '/vite.svg',
                       tag: `alert-${message.id}`,
                       requireInteraction: true
@@ -2189,21 +2209,22 @@ function App() {
     };
 
     const sendAlert = async () => {
-      if (!alertMessage.trim()) {
+      const messageText = cleanBidi(alertMessage);
+
+      if (!messageText) {
         alert('Please enter an alert message');
         return;
       }
 
-      const messageText = alertMessage.trim();
       console.log('Alert message typed:', messageText);
       console.log('Alert message length:', messageText.length);
-      console.log('Alert message chars:', messageText.split('').map((c, i) => `[${i}]: ${c}`).join(', '));
+      console.log('Alert message chars:', messageText.split('').map((c, i) => `[${i}]: ${c} (${c.charCodeAt(0)})`).join(', '));
       
       try {
         const messageData = {
           user: 'Alert',
           userId: currentUser.id,
-          message: messageText  // Send clean message without prefix
+          message: messageText  // Send sanitized message without Unicode bidi markers
         };
         
         console.log('Sending alert data:', JSON.stringify(messageData, null, 2));
@@ -2239,17 +2260,21 @@ function App() {
               <h2 className="font-semibold text-gray-900">{selectedThread.title}</h2>
               <p className="text-sm text-gray-500">{selectedThread.members.length} members • {getTimeRemaining(selectedThread.expiresAt)} left</p>
             </div>
-            {isCreator && (
+            {(isMember || isCreator) ? (
               <button
-                onClick={() => setShowAlertModal(true)}
+                onClick={() => {
+                  setAlertMessage('');
+                  setShowAlertModal(true);
+                }}
                 className="flex items-center gap-1 px-3 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors"
-                title="Send Alert to All Members"
+                title="Send alert notification to all other members"
               >
                 <span className="text-lg">🚨</span>
                 Alert
               </button>
+            ) : (
+              <div className="w-20"></div>
             )}
-            {!isCreator && <div className="w-20"></div>}
           </div>
         </div>
         {isCreator && selectedThread.pendingRequests.length > 0 && (
@@ -2280,51 +2305,81 @@ function App() {
         )}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 chat-container">
           {selectedThread.chat && selectedThread.chat.length > 0 ? (
-            selectedThread.chat.map(msg => (
-              <div key={msg.id} className={`flex ${
-                msg.user === 'Alert' ? 'justify-center' : 
-                msg.user === currentUser.username ? 'justify-end' : 
-                'justify-start'
-              }`}>
-                <div className={`${
-                  msg.user === 'Alert' ? 'max-w-full w-full' : 'max-w-xs lg:max-w-md'
-                } px-4 py-3 rounded-lg ${
-                  msg.user === 'Alert'
-                    ? 'bg-gradient-to-r from-orange-100 to-red-100 border-2 border-orange-400 shadow-lg'
-                    : msg.user === currentUser.username
-                    ? `bg-blue-600 text-white ${msg.isPending ? 'opacity-70' : ''}`
-                    : msg.user === 'System'
-                    ? 'bg-gray-100 text-gray-600 text-center text-sm'
-                    : 'bg-gray-100 text-gray-900'
-                }`}>
-                  {msg.user === 'Alert' && (
-                    <div className="flex items-center justify-center gap-2 mb-2 font-bold text-red-700">
-                      <span className="text-2xl animate-pulse">🚨</span>
-                      <span className="text-lg">CREATOR ALERT</span>
-                      <span className="text-2xl animate-pulse">🚨</span>
+            selectedThread.chat.map(msg => {
+              const sanitizedMessage = cleanBidi(msg.message);
+              const isAlert = msg.user === 'Alert';
+
+              if (isAlert) {
+                return (
+                  <div key={msg.id} className="flex justify-center">
+                    <div className="w-full max-w-2xl px-4 py-3 rounded-xl border-2 border-orange-400 bg-gradient-to-r from-orange-50 to-red-50 shadow-md">
+                      <div className="flex items-center justify-center gap-2 mb-2 text-red-700 font-semibold">
+                        <span className="text-2xl" role="img" aria-label="alert">
+                          🚨
+                        </span>
+                        <span className="tracking-wide uppercase text-xs">Creator Alert</span>
+                        <span className="text-2xl" role="img" aria-label="alert">
+                          🚨
+                        </span>
+                      </div>
+                      <div
+                        className="text-base font-semibold text-center text-gray-900"
+                        dir="ltr"
+                        style={{ direction: 'ltr', unicodeBidi: 'plaintext' }}
+                      >
+                        {sanitizedMessage}
+                      </div>
+                      <div className="text-xs text-orange-700 opacity-80 mt-2 flex items-center justify-center gap-1">
+                        {formatTime(msg.timestamp)}
+                      </div>
                     </div>
-                  )}
-                  {msg.user !== currentUser.username && msg.user !== 'System' && msg.user !== 'Alert' && (
-                    <div className="text-xs font-medium mb-1 opacity-70">{msg.user}</div>
-                  )}
-                  <div className={`${
-                    msg.user === 'Alert' 
-                      ? 'text-base font-bold text-center text-gray-900' 
-                      : 'text-sm'
-                  }`}>
-                    {msg.user === 'Alert' 
-                      ? msg.message
-                      : msg.message}
                   </div>
-                  <div className={`text-xs opacity-70 mt-1 flex items-center ${
-                    msg.user === 'Alert' ? 'justify-center' : ''
-                  } gap-1`}>
-                    {formatTime(msg.timestamp)}
-                    {msg.isPending && <span className="text-xs">⏳</span>}
+                );
+              }
+
+              const isCurrentUser = msg.user === currentUser.username;
+              const isSystemMessage = msg.user === 'System';
+
+              return (
+                <div
+                  key={msg.id}
+                  className={`flex ${
+                    isCurrentUser ? 'justify-end' : isSystemMessage ? 'justify-center' : 'justify-start'
+                  }`}
+                >
+                  <div
+                    className={`${
+                      isSystemMessage ? 'max-w-full w-full' : 'max-w-xs lg:max-w-md'
+                    } px-4 py-3 rounded-lg ${
+                      isCurrentUser
+                        ? `bg-blue-600 text-white ${msg.isPending ? 'opacity-70' : ''}`
+                        : isSystemMessage
+                        ? 'bg-gray-100 text-gray-600 text-center text-sm'
+                        : 'bg-gray-100 text-gray-900'
+                    }`}
+                  >
+                    {!isCurrentUser && !isSystemMessage && (
+                      <div className="text-xs font-medium mb-1 opacity-70">{msg.user}</div>
+                    )}
+                    <div
+                      className="text-sm"
+                      dir="ltr"
+                      style={{ direction: 'ltr', unicodeBidi: 'plaintext', textAlign: isSystemMessage ? 'center' : 'left' }}
+                    >
+                      {sanitizedMessage}
+                    </div>
+                    <div
+                      className={`text-xs opacity-70 mt-1 flex items-center ${
+                        isCurrentUser ? 'justify-end' : isSystemMessage ? 'justify-center' : 'justify-start'
+                      } gap-1`}
+                    >
+                      {formatTime(msg.timestamp)}
+                      {msg.isPending && <span className="text-xs">⏳</span>}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div className="text-center text-gray-400 mt-8">No messages yet</div>
           )}
@@ -2339,7 +2394,7 @@ function App() {
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyDown={handleKeyPress}
-                className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
                 autoFocus
                 disabled={isAdmin && !isMember}
               />
@@ -2373,19 +2428,33 @@ function App() {
               <p className="text-sm text-gray-600 mb-4">
                 This will send a highlighted message to all members. Use for important announcements like location changes, cancellations, or urgent updates.
               </p>
-              <textarea
-                placeholder="e.g., Location changed to Central Park! See you there at 5 PM."
-                value={alertMessage}
-                onChange={(e) => setAlertMessage(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent mb-4"
-                rows={4}
-                maxLength={200}
-                autoFocus
-                dir="ltr"
-                style={{ direction: 'ltr', textAlign: 'left' }}
-              />
-              <div className="text-xs text-gray-500 mb-4">
-                {alertMessage.length}/200 characters
+              <div className="space-y-2 mb-4">
+                {ALERT_PRESETS.map((phrase) => {
+                  const isSelected = alertMessage === phrase;
+                  return (
+                    <button
+                      key={phrase}
+                      type="button"
+                      onClick={() => setAlertMessage(phrase)}
+                      className={`w-full text-left px-4 py-3 border rounded-lg transition-colors ${
+                        isSelected
+                          ? 'bg-orange-600 text-white border-orange-600 shadow-md'
+                          : 'bg-white text-gray-800 border-gray-200 hover:bg-orange-50'
+                      }`}
+                    >
+                      {phrase}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Selected alert</label>
+                <div className="min-h-[72px] p-3 border border-dashed border-orange-300 rounded-lg bg-orange-50 text-sm text-gray-800">
+                  {alertMessage ? alertMessage : 'Choose one of the preset alerts above.'}
+                </div>
+                {alertMessage && (
+                  <div className="text-xs text-gray-500 mt-1">{alertMessage.length} characters</div>
+                )}
               </div>
               <div className="flex gap-3">
                 <button
@@ -2528,7 +2597,7 @@ function App() {
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-xl ${isDark ? 'bg-gradient-to-br from-blue-500 to-purple-600' : 'bg-gradient-to-br from-blue-600 to-purple-600'} shadow-lg overflow-hidden`}>
                 <img 
-                  src="/src/components/ui/logo.jpg" 
+                  src="/logo.jpg" 
                   alt="Prastha Logo" 
                   className="w-6 h-6 object-cover rounded-lg"
                 />

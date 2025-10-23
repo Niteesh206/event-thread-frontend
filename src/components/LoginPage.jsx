@@ -336,7 +336,7 @@ const LoginPage = ({ onLogin, onRegister }) => {
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ 
-            backgroundImage: "url('/src/components/ui/together.jpg')",
+            backgroundImage: "url('/together.jpg')",
             filter: 'brightness(0.7)'
           }}
         />
@@ -380,7 +380,7 @@ const LoginPage = ({ onLogin, onRegister }) => {
           <div className="max-w-6xl mx-auto flex items-center gap-3">
             <div className="bg-white/20 backdrop-blur-md p-2 rounded-xl shadow-lg hover-lift border border-white/30 overflow-hidden">
               <img 
-                src="/src/components/ui/logo.jpg" 
+                src="/logo.jpg" 
                 alt="Prastha Logo" 
                 className="w-8 h-8 object-cover rounded-lg"
               />

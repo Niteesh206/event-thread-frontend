@@ -24,6 +24,13 @@ const backend = process.env.VITE_API_URL || 'https://event-thread-backend.onrend
 
 export default defineConfig({
   plugins: [react()],
+  base: '/', // Ensure proper base path for Vercel
+  publicDir: 'public', // Explicitly set public directory
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    copyPublicDir: true // Ensure public folder files are copied to dist
+  },
   server: {
     host: true,
     port: 5173,
