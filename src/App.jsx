@@ -2359,7 +2359,7 @@ function App() {
                     }`}
                   >
                     {!isCurrentUser && !isSystemMessage && (
-                      <div className="text-xs font-medium mb-1 opacity-70">{msg.user}</div>
+                      <div className="text-xs font-medium mb-1 text-black">{msg.user}</div>
                     )}
                     <div
                       className="text-sm"
