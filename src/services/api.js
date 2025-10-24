@@ -376,9 +376,18 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Only redirect on 401 if it's NOT a login/register request
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+      const isAuthRequest = error.config?.url?.includes('/api/auth/login') || 
+                           error.config?.url?.includes('/api/auth/register');
+      
+      if (!isAuthRequest) {
+        localStorage.removeItem('token');
+        // Only redirect if not already on login page
+        if (window.location.pathname !== '/' && !window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
+      }
     }
     return Promise.reject(error);
   }

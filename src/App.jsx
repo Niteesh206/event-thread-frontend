@@ -1608,10 +1608,10 @@ function App() {
         // Save user to localStorage for persistent session
         localStorage.setItem('currentUser', JSON.stringify(user));
       } else {
-        throw new Error(response.data.message);
+        throw new Error(response.data.message || 'Invalid credentials. Please check your username and password.');
       }
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Login failed. Please try again.');
+      throw new Error(error.response?.data?.message || 'Invalid credentials. Please check your username and password.');
     }
   };
 
@@ -1640,10 +1640,10 @@ function App() {
           }, 1000); // Delay by 1 second to let user see the main UI first
         }
       } else {
-        throw new Error(response.data.message);
+        throw new Error(response.data.message || 'Registration failed. Username may already exist.');
       }
     } catch (error) {
-      throw new Error(error.response?.data?.message || 'Registration failed. Please try again.');
+      throw new Error(error.response?.data?.message || 'Registration failed. Username may already exist.');
     }
   };
 

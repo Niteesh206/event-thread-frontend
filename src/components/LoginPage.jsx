@@ -273,6 +273,7 @@ const LoginPage = ({ onLogin, onRegister }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent event bubbling
     
     // Validate all fields
     const usernameError = validateField('username', username);
@@ -298,6 +299,7 @@ const LoginPage = ({ onLogin, onRegister }) => {
         await onLogin(username, password, isAdminLogin);
       }
     } catch (err) {
+      // Ensure error is displayed without page reload
       setError(err.message || `${isRegisterMode ? 'Registration' : 'Login'} failed. Please try again.`);
       setLoading(false);
     }
@@ -440,14 +442,14 @@ const LoginPage = ({ onLogin, onRegister }) => {
                     <Shield className="w-8 h-8 text-blue-300" />
                     Admin Access
                   </span>
-                ) : isRegisterMode ? 'Create Account' : 'Welcome Back'}
+                ) : isRegisterMode ? 'Register' : 'Welcome Back'}
               </h2>
               <p className="text-white/80">
                 {isAdminLogin 
-                  ? 'Sign in with your admin credentials' 
+                  ? 'Log in with your admin credentials' 
                   : isRegisterMode 
-                  ? 'Sign up to start connecting' 
-                  : 'Sign in to your account'}
+                  ? 'Register to start connecting' 
+                  : 'Log in to your account'}
               </p>
             </div>
 
@@ -458,7 +460,7 @@ const LoginPage = ({ onLogin, onRegister }) => {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-5" noValidate>
               {/* Username Field */}
               <div>
                 <label htmlFor="username" className="block text-sm font-medium text-white mb-2">
@@ -566,15 +568,15 @@ const LoginPage = ({ onLogin, onRegister }) => {
                 {loading ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    {isRegisterMode ? 'Creating account...' : 'Signing in...'}
+                    {isRegisterMode ? 'Registering...' : 'Logging in...'}
                   </>
                 ) : (
                   isAdminLogin ? (
                     <>
                       <Shield className="w-5 h-5" />
-                      Sign In as Admin
+                      Log In as Admin
                     </>
-                  ) : isRegisterMode ? 'Create Account' : 'Sign In'
+                  ) : isRegisterMode ? 'Register' : 'Log In'
                 )}
               </button>
             </form>
@@ -585,7 +587,7 @@ const LoginPage = ({ onLogin, onRegister }) => {
                   onClick={switchMode}
                   className="text-sm text-blue-300 hover:text-blue-200 font-medium transition-colors hover:underline"
                 >
-                  {isRegisterMode ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+                  {isRegisterMode ? 'Already have an account? Log in' : "Don't have an account? Register"}
                 </button>
               </div>
             )}
@@ -596,7 +598,7 @@ const LoginPage = ({ onLogin, onRegister }) => {
                 className="w-full text-center text-sm text-blue-300 hover:text-blue-200 font-medium flex items-center justify-center gap-2 transition-all hover:gap-3"
               >
                 {isAdminLogin ? (
-                  <>← Back to {isRegisterMode ? 'sign up' : 'sign in'}</>
+                  <>← Back to {isRegisterMode ? 'register' : 'log in'}</>
                 ) : (
                   <>
                     <Shield className="w-4 h-4" />
