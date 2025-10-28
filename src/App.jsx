@@ -1327,13 +1327,13 @@
 
 //2 with improved ui
  import React, { useState, useEffect, useRef } from 'react';
-import { Clock, Users, MapPin, MessageCircle, Plus, X, Check, Hash, Calendar, Send, LogOut, User, Shield, Trash2, Eye, MessageSquare, Moon, Sun, Bell, Sparkles, ArrowUpDown, TrendingUp, TrendingDown, Zap } from 'lucide-react';
+import { Clock, Users, MapPin, MessageCircle, Plus, X, Check, Hash, Calendar, Send, LogOut, User, Shield, Trash2, Eye, MessageSquare, Moon, Sun, Bell, Sparkles, ArrowUpDown, TrendingUp, TrendingDown, Zap, AlertTriangle } from 'lucide-react';
 import { authAPI, threadsAPI, adminAPI } from './services/api';
 import LoginPage from './components/LoginPage';
 import GossipsPage from './components/GossipsPage';
-import MobileRouter from './components/mobile/MobileRouter'; // Assuming this is correct
+import MobileRouter from './components/mobile/MobileRouter';
 import { io } from 'socket.io-client';
-import { useTheme } from './context/ThemeContext'; // Assuming this is correct
+import { useTheme } from './context/ThemeContext';
 
 // remove bidi / directionality chars and normalize
 const cleanBidi = (s = '') =>
@@ -2063,7 +2063,7 @@ function App() {
     );
   };
 
-  // Chat View Component
+  // Chat View Component - IMPROVED
   const ChatView = () => {
     if (!selectedThread) return null;
     
@@ -2080,14 +2080,11 @@ function App() {
         const handleNewMessage = (message) => {
           console.log('📨 New message received:', message);
           
-          // Sanitize message text to prevent bidi control issues
           if (message.message) {
             message.message = cleanBidi(message.message);
           }
           
-          // Add message to chat - Use functional update to avoid re-render flicker
           setSelectedThread(prev => {
-            // Don't re-render if message already exists (prevents flicker)
             if (prev.chat.some(msg => msg.id === message.id)) {
               return prev;
             }
@@ -2100,8 +2097,6 @@ function App() {
 
           // Show DEVICE notification for alerts (only for other users)
           if (message.user === 'Alert' && message.userId !== currentUser.id) {
-            console.log('🚨 Alert received from another user!');
-            
             if ('Notification' in window && Notification.permission === 'granted') {
               const notification = new Notification(`🚨 Alert from ${selectedThread.title}`, {
                 body: `\u202A${cleanBidi(message.message)}`,
@@ -2240,8 +2235,6 @@ function App() {
         return;
       }
 
-      console.log('Alert message typed:', messageText);
-      
       try {
         const messageData = {
           user: 'Alert',
@@ -2249,17 +2242,12 @@ function App() {
           message: messageText
         };
         
-        console.log('Sending alert data:', JSON.stringify(messageData, null, 2));
-        
         const result = await threadsAPI.sendMessage(selectedThread.id, messageData);
-        
-        console.log('Alert response:', result.data);
         
         if (result.data.success) {
           setAlertMessage('');
           setShowAlertModal(false);
           alertCursorRef.current = 0; // Reset cursor
-          console.log('✅ Alert sent successfully');
         }
       } catch (error) {
         console.error('❌ Error sending alert:', error);
@@ -2272,17 +2260,24 @@ function App() {
       return `User_${userId.slice(-4)}`;
     };
 
+    const bubbleColor = isDark ? 'bg-gray-700 text-white' : 'bg-white text-gray-900 shadow-md';
+    const myBubbleColor = isDark ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white shadow-lg';
+    const alertBubbleColor = 'bg-gradient-to-r from-red-100 to-orange-100 border-2 border-orange-400 shadow-xl';
+
     return (
-      <div className="fixed inset-0 bg-white z-40 flex flex-col">
+      <div className="fixed inset-0 bg-gray-50 dark:bg-gray-900 z-40 flex flex-col">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 p-4">
+        <div className={`shadow-lg p-4 transition-colors duration-300 ${isDark ? 'bg-gray-800 border-b border-gray-700' : 'bg-white border-b border-gray-200'}`}>
           <div className="flex items-center justify-between">
-            <button onClick={() => setSelectedThread(null)} className="text-gray-600 hover:text-gray-800">
+            <button onClick={() => setSelectedThread(null)} className="text-gray-600 dark:text-gray-300 hover:text-blue-500 dark:hover:text-blue-400">
               ← Back
             </button>
-            <div className="text-center flex-1">
-              <h2 className="font-semibold text-gray-900">{selectedThread.title}</h2>
-              <p className="text-sm text-gray-500">{selectedThread.members.length} members • {getTimeRemaining(selectedThread.expiresAt)} left</p>
+            <div className="text-center flex-1 mx-4">
+              <h2 className={`font-bold text-lg truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{selectedThread.title}</h2>
+              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                <Users className="w-3 h-3 inline mr-1" />
+                {selectedThread.members.length} members • {getTimeRemaining(selectedThread.expiresAt)} left
+              </p>
             </div>
             {(isMember || isCreator) ? (
               <button
@@ -2291,10 +2286,10 @@ function App() {
                   alertCursorRef.current = 0;
                   setShowAlertModal(true);
                 }}
-                className="flex items-center gap-1 px-3 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors"
-                title="Send alert notification to all other members"
+                className="flex items-center gap-1 px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors shadow-lg"
+                title="Send alert notification to all members"
               >
-                <span className="text-lg">🚨</span>
+                <AlertTriangle className="w-4 h-4" />
                 Alert
               </button>
             ) : (
@@ -2305,22 +2300,24 @@ function App() {
 
         {/* Pending Requests */}
         {isCreator && selectedThread.pendingRequests.length > 0 && (
-          <div className="bg-orange-50 border-b border-orange-200 p-4">
-            <h3 className="font-medium text-orange-900 mb-2">Join Requests ({selectedThread.pendingRequests.length})</h3>
+          <div className="bg-orange-100 dark:bg-orange-900 border-b border-orange-300 dark:border-orange-700 p-4">
+            <h3 className="font-medium text-orange-900 dark:text-orange-200 mb-2">Join Requests ({selectedThread.pendingRequests.length})</h3>
             <div className="space-y-2">
               {selectedThread.pendingRequests.map(userId => (
-                <div key={userId} className="flex items-center justify-between bg-white p-2 rounded-lg">
-                  <span className="text-sm font-medium">{getUsernameById(userId)}</span>
+                <div key={userId} className={`flex items-center justify-between p-3 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'}`}>
+                  <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{getUsernameById(userId)}</span>
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleRequest(userId, false)}
-                      className="p-1 text-red-600 hover:bg-red-50 rounded"
+                      className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded"
+                      title="Reject"
                     >
                       <X className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleRequest(userId, true)}
-                      className="p-1 text-green-600 hover:bg-green-50 rounded"
+                      className="p-1 text-green-600 hover:bg-green-100 dark:hover:bg-green-900 rounded"
+                      title="Approve"
                     >
                       <Check className="w-4 h-4" />
                     </button>
@@ -2331,24 +2328,26 @@ function App() {
           </div>
         )}
 
-        {/* Messages - Use key to prevent re-renders */}
+        {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 chat-container">
           {selectedThread.chat && selectedThread.chat.length > 0 ? (
             selectedThread.chat.map(msg => {
               const sanitizedMessage = cleanBidi(msg.message);
               const isAlert = msg.user === 'Alert';
+              const isCurrentUser = msg.user === currentUser.username;
+              const isSystemMessage = msg.user === 'System';
 
               if (isAlert) {
                 return (
                   <div key={msg.id} className="flex justify-center">
-                    <div className="w-full max-w-2xl px-4 py-3 rounded-xl border-2 border-orange-400 bg-gradient-to-r from-orange-50 to-red-50 shadow-md">
-                      <div className="flex items-center justify-center gap-2 mb-2 text-red-700 font-semibold">
-                        <span className="text-2xl" role="img" aria-label="alert">🚨</span>
-                        <span className="tracking-wide uppercase text-xs">Creator Alert</span>
-                        <span className="text-2xl" role="img" aria-label="alert">🚨</span>
+                    <div className={`w-full max-w-lg px-5 py-3 rounded-xl ${alertBubbleColor}`}>
+                      <div className="flex items-center justify-center gap-2 mb-2 text-red-700 dark:text-red-500 font-bold">
+                        <span className="text-2xl animate-pulse" role="img" aria-label="alert">🚨</span>
+                        <span className="tracking-wide uppercase text-sm">Creator Alert</span>
+                        <span className="text-2xl animate-pulse" role="img" aria-label="alert">🚨</span>
                       </div>
                       <div
-                        className="text-base font-semibold text-center text-gray-900"
+                        className="text-base font-semibold text-center text-gray-900 dark:text-gray-800"
                         dir="ltr"
                         style={{ direction: 'ltr', unicodeBidi: 'plaintext' }}
                       >
@@ -2362,94 +2361,98 @@ function App() {
                 );
               }
 
-              const isCurrentUser = msg.user === currentUser.username;
-              const isSystemMessage = msg.user === 'System';
+              if (isSystemMessage) {
+                 return (
+                    <div key={msg.id} className="flex justify-center">
+                        <div className={`px-4 py-2 rounded-lg max-w-xs ${isDark ? 'bg-gray-700/50 text-gray-400' : 'bg-gray-200 text-gray-600'} text-center text-sm`}>
+                            {sanitizedMessage}
+                        </div>
+                    </div>
+                 );
+              }
 
               return (
                 <div
                   key={msg.id}
-                  className={`flex ${
-                    isCurrentUser ? 'justify-end' : isSystemMessage ? 'justify-center' : 'justify-start'
-                  }`}
+                  className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div
-                    className={`${
-                      isSystemMessage ? 'max-w-full w-full' : 'max-w-xs lg:max-w-md'
-                    } px-4 py-3 rounded-lg ${
-                      isCurrentUser
-                        ? `bg-blue-600 text-white ${msg.isPending ? 'opacity-70' : ''}`
-                        : isSystemMessage
-                        ? 'bg-gray-100 text-gray-600 text-center text-sm'
-                        : 'bg-gray-100 text-gray-900'
-                    }`}
-                  >
-                    {!isCurrentUser && !isSystemMessage && (
-                      <div className="text-xs font-medium mb-1 text-black">{msg.user}</div>
-                    )}
-                    <div
-                      className="text-sm"
-                      dir="ltr"
-                      style={{ direction: 'ltr', unicodeBidi: 'plaintext', textAlign: isSystemMessage ? 'center' : 'left' }}
-                    >
-                      {sanitizedMessage}
+                  <div className="max-w-xs lg:max-w-md">
+                    <div className={`text-xs font-medium mb-1 ${isCurrentUser ? 'text-right' : 'text-left'} ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {!isCurrentUser && <strong>{msg.user}</strong>}
                     </div>
                     <div
-                      className={`text-xs opacity-70 mt-1 flex items-center ${
-                        isCurrentUser ? 'justify-end' : isSystemMessage ? 'justify-center' : 'justify-start'
-                      } gap-1`}
+                      className={`px-4 py-3 rounded-2xl ${isCurrentUser ? 'rounded-br-none' : 'rounded-tl-none'} ${
+                        isCurrentUser
+                          ? `${myBubbleColor} ${msg.isPending ? 'opacity-70' : ''}`
+                          : bubbleColor
+                      }`}
                     >
-                      {formatTime(msg.timestamp)}
-                      {msg.isPending && <span className="text-xs">⏳</span>}
+                      <div
+                        className="text-sm"
+                        dir="ltr"
+                        style={{ direction: 'ltr', unicodeBidi: 'plaintext', textAlign: 'left' }}
+                      >
+                        {sanitizedMessage}
+                      </div>
+                      <div
+                        className={`text-xs opacity-80 mt-1 flex items-center ${
+                          isCurrentUser ? 'justify-end' : 'justify-start'
+                        } gap-1`}
+                      >
+                        {formatTime(msg.timestamp)}
+                        {msg.isPending && <span className="text-xs">⏳</span>}
+                      </div>
                     </div>
                   </div>
                 </div>
               );
             })
           ) : (
-            <div className="text-center text-gray-400 mt-8">No messages yet</div>
+            <div className={`text-center mt-8 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Start the conversation!</div>
           )}
           <div ref={chatEndRef} />
         </div>
 
-        {/* Message Input - FIX APPLIED: Added ref, value change handler, and dir/style for LTR */}
+        {/* Message Input */}
         {(isMember || isAdmin) && (
-          <div className="bg-white border-t border-gray-200 p-4">
-            <div className="flex gap-2">
+          <div className={`p-4 shadow-2xl transition-colors duration-300 ${isDark ? 'bg-gray-800 border-t border-gray-700' : 'bg-white border-t border-gray-200'}`}>
+            <div className="flex gap-2 items-center">
               <input
                 ref={messageInputRef}
                 type="text"
-                placeholder="Type a message..."
+                placeholder={isAdmin && !isMember ? "Admin view only - cannot send messages" : "Type a message..."}
                 value={newMessage}
                 onChange={handleMessageChange}
                 onKeyDown={handleKeyPress}
-                className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
+                className={`flex-1 p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  isDark 
+                    ? 'bg-gray-700 text-white border-gray-600 placeholder-gray-400' 
+                    : 'bg-gray-100 text-gray-900 border-gray-300 placeholder-gray-500'
+                }`}
                 autoFocus
                 disabled={isAdmin && !isMember}
-                dir="ltr" // Force LTR input direction
-                style={{ direction: 'ltr' }} // Add inline style as a fallback
+                dir="ltr"
+                style={{ direction: 'ltr' }}
               />
               <button
                 onClick={sendMessage}
                 disabled={!newMessage.trim() || (isAdmin && !isMember)}
-                className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
               >
                 <Send className="w-5 h-5" />
               </button>
             </div>
-            {isAdmin && !isMember && (
-              <p className="text-xs text-gray-500 mt-2">Admin view only - cannot send messages</p>
-            )}
           </div>
         )}
 
         {/* Alert Modal with Fixed Cursor */}
         {showAlertModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className={`rounded-lg p-6 w-full max-w-md ${isDark ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <span className="text-2xl">🚨</span>
-                  <h3 className="text-xl font-bold text-gray-900">Send Alert</h3>
+                  <h3 className="text-xl font-bold">Send Alert</h3>
                 </div>
                 <button 
                   onClick={() => {
@@ -2457,13 +2460,13 @@ function App() {
                     setAlertMessage('');
                     alertCursorRef.current = 0;
                   }} 
-                  className="text-gray-500 hover:text-gray-700"
+                  className={`text-gray-500 hover:text-red-500 ${isDark ? 'text-gray-400 hover:text-red-400' : ''}`}
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <p className="text-sm text-gray-600 mb-4">
-                Choose a preset alert or type your own message.
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Choose a preset alert or type your own message. This sends a persistent notification.
               </p>
               
               {/* Preset Buttons */}
@@ -2478,10 +2481,12 @@ function App() {
                         setAlertMessage(phrase);
                         alertCursorRef.current = phrase.length; // Set cursor to end
                       }}
-                      className={`w-full text-left px-4 py-3 border rounded-lg transition-colors ${
+                      className={`w-full text-left px-4 py-3 border rounded-lg transition-colors text-sm ${
                         isSelected
-                          ? 'bg-orange-600 text-white border-orange-600 shadow-md'
-                          : 'bg-white text-gray-800 border-gray-200 hover:bg-orange-50'
+                          ? 'bg-red-600 text-white border-red-600 shadow-md'
+                          : isDark
+                          ? 'bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600'
+                          : 'bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200'
                       }`}
                     >
                       {phrase}
@@ -2492,7 +2497,7 @@ function App() {
 
               {/* Custom Alert Input */}
               <div className="mb-4">
-                <label className="block text-xs font-semibold text-gray-500 mb-1">
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
                   Or type a custom alert
                 </label>
                 <textarea
@@ -2500,14 +2505,16 @@ function App() {
                   placeholder="Type your alert message..."
                   value={alertMessage}
                   onChange={handleAlertChange}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none text-gray-900 placeholder-gray-500"
+                  className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none text-gray-900 dark:text-white ${
+                    isDark ? 'bg-gray-700 border-gray-600 placeholder-gray-400' : 'bg-white border-gray-300 placeholder-gray-500'
+                  }`}
                   rows={3}
                   maxLength={200}
                   dir="ltr"
                   style={{ direction: 'ltr', textAlign: 'left' }}
                 />
                 {alertMessage && (
-                  <div className="text-xs text-gray-500 mt-1">{alertMessage.length}/200 characters</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{alertMessage.length}/200 characters</div>
                 )}
               </div>
 
@@ -2518,14 +2525,14 @@ function App() {
                     setAlertMessage('');
                     alertCursorRef.current = 0;
                   }}
-                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  className={`flex-1 px-4 py-2 text-gray-700 rounded-lg transition-colors ${isDark ? 'bg-gray-600 text-gray-200 hover:bg-gray-500' : 'bg-gray-100 hover:bg-gray-200'}`}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={sendAlert}
                   disabled={!alertMessage.trim()}
-                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
                 >
                   <span className="text-lg">🚨</span>
                   Send Alert
@@ -2555,30 +2562,26 @@ function App() {
   if (showAdminDashboard) return <AdminDashboard />;
   if (showGossips) return <GossipsPage currentUser={currentUser} socketRef={socketRef} onBack={() => setShowGossips(false)} />;
 
-  // Mobile-first responsive routing - FIX APPLIED: Pass filtering/sorting state and handlers
+  // Mobile-first responsive routing
   if (isMobile) {
     // Show chat view if thread is selected
     if (selectedThread) {
       return <ChatView />;
     }
     
-    // Show gossips page
-    if (showGossips) {
-      return <GossipsPage currentUser={currentUser} socketRef={socketRef} onBack={() => setShowGossips(false)} />;
-    }
-    
-    // Main mobile router with page navigation
+    // Main mobile router with page navigation (Pass filtered/sorted data)
     return (
       <MobileRouter
         currentUser={currentUser}
-        threads={threads}
+        threads={getFilteredAndSortedThreads()} // <-- FIX: Pass filtered/sorted threads
         categories={categories}
-        sortOptions={sortOptions} // Pass sort options for rendering buttons
+        sortOptions={sortOptions}
         filterCategory={filterCategory}
         onCategoryChange={setFilterCategory}
-        sortBy={sortBy} // Pass sort state
-        onSortChange={setSortBy} // Pass sort handler
-        getFilteredAndSortedThreads={getFilteredAndSortedThreads} // Pass the complete function
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        // If MobileRouter needs the full list, pass it, but for display, use the filtered/sorted one.
+        // We assume MobileRouter handles filtering/sorting display with the state/handlers passed.
         getTimeRemaining={getTimeRemaining}
         onThreadClick={(thread) => setSelectedThread(thread)}
         onActionClick={async (thread) => {
@@ -2587,13 +2590,10 @@ function App() {
           const hasPendingRequest = thread.pendingRequests.includes(currentUser.id);
           
           if (isCreator && thread.pendingRequests.length > 0) {
-            // Open thread to review requests
             setSelectedThread(thread);
           } else if (isMember) {
-            // Open chat
             setSelectedThread(thread);
           } else if (!hasPendingRequest) {
-            // Send join request
             setThreads(prevThreads => 
               prevThreads.map(t => 
                 t.id === thread.id 
@@ -2612,7 +2612,6 @@ function App() {
           }
         }}
         onCreateThread={async (formData) => {
-          // Combine category with custom tags
           const allTags = [formData.category];
           if (formData.tags.trim()) {
             allTags.push(...formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag));
@@ -2636,16 +2635,15 @@ function App() {
         onLogout={() => {
           setCurrentUser(null);
           setShowLoginForm(true);
-          // Clear localStorage on logout
           localStorage.removeItem('currentUser');
         }}
         socketRef={socketRef}
-        onShowGossips={() => setShowGossips(true)} // Pass handler for gossips page
+        onShowGossips={() => setShowGossips(true)}
       />
     );
   }
 
-  // Desktop layout (existing code)
+  // Desktop layout 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${isDark ? 'dark bg-gray-900' : 'bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50'}`}>
       <header className={`shadow-lg border-b transition-colors duration-300 ${
@@ -2690,7 +2688,7 @@ function App() {
                 {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
               
-              {/* Gossips Button - Same style as Create Thread */}
+              {/* Gossips Button */}
               <button
                 onClick={() => setShowGossips(true)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all shadow-lg ${
