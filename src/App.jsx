@@ -2066,32 +2066,36 @@ function App() {
     const isMember = selectedThread.members.includes(currentUser.id);
     const isAdmin = currentUser.isAdmin;
     
-    // New Ref for the chat messages container itself
     const chatContainerRef = useRef(null);
+    const [lastMessageId, setLastMessageId] = useState(selectedThread?.chat?.[selectedThread.chat.length - 1]?.id || null);
 
     // Auto-scroll logic function
-    const scrollToBottom = (isNewMessage = false) => {
-        const container = chatContainerRef.current;
-        if (!container) return;
-
-        // Check if the user is already near the bottom (within 100px tolerance)
-        const isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 100;
-        
-        // Always scroll if the user sends a message or if they are already near the bottom
-        if (!isNewMessage || isScrolledToBottom) {
-            chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }
+    const scrollToBottom = (behavior = 'smooth') => {
+        chatEndRef.current?.scrollIntoView({ behavior });
     };
 
-    // Use useEffect to trigger scroll when selectedThread.chat changes
+    // New useEffect to handle scroll on new message arrival (based on lastMessageId change)
     useEffect(() => {
-        // We call scrollToBottom with true to enable the "near bottom" check
-        scrollToBottom(true);
-    }, [selectedThread?.chat]);
+        if (!chatContainerRef.current) return;
+
+        // Check if the user is already near the bottom (within 100px tolerance)
+        const container = chatContainerRef.current;
+        const isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 100;
+        
+        // Only scroll if a new message arrived AND the user is near the bottom
+        if (lastMessageId && isScrolledToBottom) {
+            // Use requestAnimationFrame to ensure scroll happens after React and browser layout updates
+            requestAnimationFrame(() => scrollToBottom('smooth'));
+        }
+    }, [lastMessageId]);
+
 
     // Join thread room on mount
     useEffect(() => {
       if (socketRef.current && selectedThread) {
+        // Initialize lastMessageId when thread changes
+        setLastMessageId(selectedThread.chat?.[selectedThread.chat.length - 1]?.id || null);
+
         socketRef.current.emit('join-thread', selectedThread.id);
         
         // Listen for new messages
@@ -2107,9 +2111,10 @@ function App() {
             }
             
             const newChat = [...prev.chat.filter(msg => !msg.isPending), message];
-
-            // When a message arrives via socket, we need to check the scroll position 
-            // after the state update triggers the useEffect for chat changes.
+            
+            // Update last message ID to trigger the scroll effect ONLY for server-confirmed messages
+            setLastMessageId(message.id);
+            
             return {
               ...prev,
               chat: newChat
@@ -2203,8 +2208,9 @@ function App() {
       setNewMessage('');
       cursorPositionRef.current = 0; // Reset cursor position
       
-      // Immediately scroll to bottom when *I* send a message
-      setTimeout(() => scrollToBottom(false), 0);
+      // Immediately scroll to bottom when *I* send a message (always force scroll for own message)
+      requestAnimationFrame(() => scrollToBottom('smooth'));
+
 
       try {
         const messageData = {
@@ -2214,7 +2220,7 @@ function App() {
         };
         
         await threadsAPI.sendMessage(selectedThread.id, messageData);
-        // Socket will handle adding the real message
+        // Socket will handle adding the real message and updating lastMessageId
       } catch (error) {
         // Remove pending message on error
         setSelectedThread(prev => ({
