@@ -1457,7 +1457,7 @@ const ChatMessage = React.memo(({ msg, currentUser, isDark }) => {
               } gap-1`}
             >
               {formatTime(msg.timestamp)}
-              {msg.isPending && <span className="text-xs">⏳</span>}
+              {/* REMOVED: The pending emoji is no longer here */}
             </div>
           </div>
         </div>
@@ -2146,7 +2146,7 @@ function App() {
     );
   };
 
-  // Chat View Component - SCROLL BUG FIXED
+  // Chat View Component
   const ChatView = () => {
     if (!selectedThread) return null;
 
