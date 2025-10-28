@@ -1513,11 +1513,6 @@ function App() {
     }
   }, [currentUser, showLoginForm, notificationsEnabled]);
 
-  // Auto-scroll chat
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [selectedThread?.chat]);
-
   // Load threads periodically (as backup, socket handles real-time)
   useEffect(() => {
     if (currentUser && !showLoginForm) {
@@ -2063,13 +2058,36 @@ function App() {
     );
   };
 
-  // Chat View Component - IMPROVED
+  // Chat View Component - IMPROVED SCROLL LOGIC
   const ChatView = () => {
     if (!selectedThread) return null;
     
     const isCreator = selectedThread.creatorId === currentUser.id;
     const isMember = selectedThread.members.includes(currentUser.id);
     const isAdmin = currentUser.isAdmin;
+    
+    // New Ref for the chat messages container itself
+    const chatContainerRef = useRef(null);
+
+    // Auto-scroll logic function
+    const scrollToBottom = (isNewMessage = false) => {
+        const container = chatContainerRef.current;
+        if (!container) return;
+
+        // Check if the user is already near the bottom (within 100px tolerance)
+        const isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 100;
+        
+        // Always scroll if the user sends a message or if they are already near the bottom
+        if (!isNewMessage || isScrolledToBottom) {
+            chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
+
+    // Use useEffect to trigger scroll when selectedThread.chat changes
+    useEffect(() => {
+        // We call scrollToBottom with true to enable the "near bottom" check
+        scrollToBottom(true);
+    }, [selectedThread?.chat]);
 
     // Join thread room on mount
     useEffect(() => {
@@ -2078,7 +2096,6 @@ function App() {
         
         // Listen for new messages
         const handleNewMessage = (message) => {
-          console.log('📨 New message received:', message);
           
           if (message.message) {
             message.message = cleanBidi(message.message);
@@ -2089,9 +2106,13 @@ function App() {
               return prev;
             }
             
+            const newChat = [...prev.chat.filter(msg => !msg.isPending), message];
+
+            // When a message arrives via socket, we need to check the scroll position 
+            // after the state update triggers the useEffect for chat changes.
             return {
               ...prev,
-              chat: [...prev.chat.filter(msg => !msg.isPending), message]
+              chat: newChat
             };
           });
 
@@ -2172,7 +2193,7 @@ function App() {
         isPending: true
       };
 
-      // Optimistic update with functional setState to prevent flicker
+      // Optimistic update
       setSelectedThread(prev => ({
         ...prev,
         chat: [...prev.chat, tempMessage]
@@ -2181,6 +2202,9 @@ function App() {
       const messageText = newMessage.trim();
       setNewMessage('');
       cursorPositionRef.current = 0; // Reset cursor position
+      
+      // Immediately scroll to bottom when *I* send a message
+      setTimeout(() => scrollToBottom(false), 0);
 
       try {
         const messageData = {
@@ -2242,13 +2266,11 @@ function App() {
           message: messageText
         };
         
-        const result = await threadsAPI.sendMessage(selectedThread.id, messageData);
+        await threadsAPI.sendMessage(selectedThread.id, messageData);
         
-        if (result.data.success) {
-          setAlertMessage('');
-          setShowAlertModal(false);
-          alertCursorRef.current = 0; // Reset cursor
-        }
+        setAlertMessage('');
+        setShowAlertModal(false);
+        alertCursorRef.current = 0; // Reset cursor
       } catch (error) {
         console.error('❌ Error sending alert:', error);
         alert('Error sending alert. Please try again.');
@@ -2328,8 +2350,8 @@ function App() {
           </div>
         )}
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 chat-container">
+        {/* Messages Container with new Ref */}
+        <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 chat-container">
           {selectedThread.chat && selectedThread.chat.length > 0 ? (
             selectedThread.chat.map(msg => {
               const sanitizedMessage = cleanBidi(msg.message);
@@ -2573,15 +2595,13 @@ function App() {
     return (
       <MobileRouter
         currentUser={currentUser}
-        threads={getFilteredAndSortedThreads()} // <-- FIX: Pass filtered/sorted threads
+        threads={getFilteredAndSortedThreads()} // FIX: Pass filtered/sorted threads
         categories={categories}
         sortOptions={sortOptions}
         filterCategory={filterCategory}
         onCategoryChange={setFilterCategory}
         sortBy={sortBy}
         onSortChange={setSortBy}
-        // If MobileRouter needs the full list, pass it, but for display, use the filtered/sorted one.
-        // We assume MobileRouter handles filtering/sorting display with the state/handlers passed.
         getTimeRemaining={getTimeRemaining}
         onThreadClick={(thread) => setSelectedThread(thread)}
         onActionClick={async (thread) => {
