@@ -1326,7 +1326,7 @@
 
 
 //2 with improved ui
- import React, { useState, useEffect, useRef } from 'react';
+ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Clock, Users, MapPin, MessageCircle, Plus, X, Check, Hash, Calendar, Send, LogOut, User, Shield, Trash2, Eye, MessageSquare, Moon, Sun, Bell, Sparkles, ArrowUpDown, TrendingUp, TrendingDown, Zap, AlertTriangle } from 'lucide-react';
 import { authAPI, threadsAPI, adminAPI } from './services/api';
 import LoginPage from './components/LoginPage';
@@ -1357,6 +1357,22 @@ const formatTime = (dateString) => {
   return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
+const formatDateDivider = (dateString) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+        return 'Today';
+    }
+    if (date.toDateString() === yesterday.toDateString()) {
+        return 'Yesterday';
+    }
+    return date.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
+};
+
+
 const getTimeRemaining = (expiresAt) => {
   const diff = new Date(expiresAt) - new Date();
   const hours = Math.floor(diff / (1000 * 60 * 60));
@@ -1365,6 +1381,90 @@ const getTimeRemaining = (expiresAt) => {
   if (minutes > 0) return `${minutes}m`;
   return 'Expiring soon';
 };
+
+// =================================================================================
+// Memoized ChatMessage Component to prevent re-renders and fix flickering
+// =================================================================================
+const ChatMessage = React.memo(({ msg, currentUser, isDark }) => {
+    const sanitizedMessage = cleanBidi(msg.message);
+    const isAlert = msg.user === 'Alert';
+    const isCurrentUser = msg.user === currentUser.username;
+    const isSystemMessage = msg.user === 'System';
+    
+    const bubbleColor = isDark ? 'bg-gray-700 text-white' : 'bg-white text-gray-900 shadow-md';
+    const myBubbleColor = isDark ? 'bg-blue-700 text-white' : 'bg-blue-500 text-white shadow-lg';
+    const alertBubbleColor = 'bg-gradient-to-r from-red-100 to-orange-100 border-2 border-orange-400 shadow-xl';
+
+    if (isAlert) {
+      return (
+        <div className="flex justify-center my-2">
+          <div className={`w-full max-w-lg px-5 py-3 rounded-xl ${alertBubbleColor}`}>
+            <div className="flex items-center justify-center gap-2 mb-2 text-red-700 dark:text-red-500 font-bold">
+              <span className="text-2xl animate-pulse" role="img" aria-label="alert">🚨</span>
+              <span className="tracking-wide uppercase text-sm">Creator Alert</span>
+              <span className="text-2xl animate-pulse" role="img" aria-label="alert">🚨</span>
+            </div>
+            <div
+              className="text-base font-semibold text-center text-gray-900 dark:text-gray-800"
+              dir="ltr"
+              style={{ direction: 'ltr', unicodeBidi: 'plaintext' }}
+            >
+              {sanitizedMessage}
+            </div>
+            <div className="text-xs text-orange-700 opacity-80 mt-2 flex items-center justify-center gap-1">
+              {formatTime(msg.timestamp)}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (isSystemMessage) {
+       return (
+          <div className="flex justify-center my-2">
+              <div className={`px-4 py-2 rounded-lg max-w-xs ${isDark ? 'bg-gray-700/50 text-gray-400' : 'bg-gray-200 text-gray-600'} text-center text-sm`}>
+                  {sanitizedMessage}
+              </div>
+          </div>
+       );
+    }
+
+    return (
+      <div
+        className={`flex items-end ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
+      >
+        <div className="max-w-xs lg:max-w-md">
+          <div className={`px-4 py-2.5 rounded-2xl ${isCurrentUser ? 'rounded-br-lg' : 'rounded-tl-lg'} ${
+            isCurrentUser
+              ? `${myBubbleColor} ${msg.isPending ? 'opacity-70' : ''}`
+              : bubbleColor
+          }`}>
+            {!isCurrentUser && (
+                <div className="text-xs font-bold mb-1 text-blue-400 dark:text-teal-400">
+                    {msg.user}
+                </div>
+            )}
+            <div
+              className="text-sm"
+              dir="ltr"
+              style={{ direction: 'ltr', unicodeBidi: 'plaintext', textAlign: 'left', whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}
+            >
+              {sanitizedMessage}
+            </div>
+            <div
+              className={`text-xs opacity-80 mt-1.5 flex items-center ${
+                isCurrentUser ? 'justify-end' : 'justify-end' // Both align to end for consistency
+              } gap-1`}
+            >
+              {formatTime(msg.timestamp)}
+              {msg.isPending && <span className="text-xs">⏳</span>}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+});
+
 
 function App() {
   const { isDark, toggleTheme } = useTheme();
@@ -1389,10 +1489,8 @@ function App() {
   const chatEndRef = useRef(null);
   const socketRef = useRef(null);
   
-  // Ref for cursor position in main chat input
   const messageInputRef = useRef(null);
   const cursorPositionRef = useRef(0);
-  // Ref for cursor position in alert modal input
   const alertInputRef = useRef(null);
   const alertCursorRef = useRef(0);
 
@@ -1518,7 +1616,6 @@ function App() {
     if (currentUser && !showLoginForm) {
       loadThreads();
       
-      // Backup polling every 60s (socket handles real-time updates)
       const interval = setInterval(() => {
         if (!showCreateForm && !showEditForm) {
           loadThreads();
@@ -1605,7 +1702,6 @@ function App() {
         const user = response.data.user;
         setCurrentUser(user);
         setShowLoginForm(false);
-        // Save user to localStorage for persistent session
         localStorage.setItem('currentUser', JSON.stringify(user));
       } else {
         throw new Error(response.data.message || 'Invalid credentials. Please check your username and password.');
@@ -1622,10 +1718,8 @@ function App() {
         const user = response.data.user;
         setCurrentUser(user);
         setShowLoginForm(false);
-        // Save user to localStorage for persistent session
         localStorage.setItem('currentUser', JSON.stringify(user));
         
-        // Request notification permission immediately after registration
         if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
           setTimeout(() => {
             Notification.requestPermission().then(permission => {
@@ -1637,7 +1731,7 @@ function App() {
                 });
               }
             });
-          }, 1000); // Delay by 1 second to let user see the main UI first
+          }, 1000);
         }
       } else {
         throw new Error(response.data.message || 'Registration failed. Username may already exist.');
@@ -1809,7 +1903,6 @@ function App() {
       if (!formData.title.trim() || !formData.description.trim() || !formData.location.trim()) return;
       setLoading(true);
       
-      // Combine category with custom tags
       const allTags = [formData.category];
       if (formData.tags.trim()) {
         allTags.push(...formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag));
@@ -1825,7 +1918,6 @@ function App() {
         expiresAt: new Date(Date.now() + parseInt(formData.duration) * 60 * 60 * 1000).toISOString()
       };
 
-      // Optimistic update - close form immediately
       setShowCreateForm(false);
       const tempFormData = { ...formData };
       setFormData({ title: '', description: '', location: '', category: 'other', tags: '', duration: '2' });
@@ -1837,7 +1929,6 @@ function App() {
         }
       } catch (error) {
         alert('Error creating thread');
-        // Restore form on error
         setShowCreateForm(true);
         setFormData(tempFormData);
       } finally {
@@ -2058,7 +2149,7 @@ function App() {
     );
   };
 
-  // Chat View Component - IMPROVED SCROLL LOGIC
+  // Chat View Component
   const ChatView = () => {
     if (!selectedThread) return null;
     
@@ -2067,61 +2158,41 @@ function App() {
     const isAdmin = currentUser.isAdmin;
     
     const chatContainerRef = useRef(null);
-    const [lastMessageId, setLastMessageId] = useState(selectedThread?.chat?.[selectedThread.chat.length - 1]?.id || null);
+    const lastMessageId = selectedThread.chat?.[selectedThread.chat.length - 1]?.id;
 
-    // Auto-scroll logic function
     const scrollToBottom = (behavior = 'smooth') => {
         chatEndRef.current?.scrollIntoView({ behavior });
     };
 
-    // New useEffect to handle scroll on new message arrival (based on lastMessageId change)
     useEffect(() => {
         if (!chatContainerRef.current) return;
 
-        // Check if the user is already near the bottom (within 100px tolerance)
         const container = chatContainerRef.current;
-        const isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 100;
+        const isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 150; // Increased tolerance
         
-        // Only scroll if a new message arrived AND the user is near the bottom
         if (lastMessageId && isScrolledToBottom) {
-            // Use requestAnimationFrame to ensure scroll happens after React and browser layout updates
             requestAnimationFrame(() => scrollToBottom('smooth'));
         }
     }, [lastMessageId]);
 
 
-    // Join thread room on mount
     useEffect(() => {
       if (socketRef.current && selectedThread) {
-        // Initialize lastMessageId when thread changes
-        setLastMessageId(selectedThread.chat?.[selectedThread.chat.length - 1]?.id || null);
-
         socketRef.current.emit('join-thread', selectedThread.id);
         
-        // Listen for new messages
         const handleNewMessage = (message) => {
-          
           if (message.message) {
             message.message = cleanBidi(message.message);
           }
           
           setSelectedThread(prev => {
-            if (prev.chat.some(msg => msg.id === message.id)) {
-              return prev;
-            }
-            
+            if (!prev || prev.id !== message.threadId) return prev;
+            if (prev.chat.some(msg => msg.id === message.id)) return prev;
+
             const newChat = [...prev.chat.filter(msg => !msg.isPending), message];
-            
-            // Update last message ID to trigger the scroll effect ONLY for server-confirmed messages
-            setLastMessageId(message.id);
-            
-            return {
-              ...prev,
-              chat: newChat
-            };
+            return { ...prev, chat: newChat };
           });
 
-          // Show DEVICE notification for alerts (only for other users)
           if (message.user === 'Alert' && message.userId !== currentUser.id) {
             if ('Notification' in window && Notification.permission === 'granted') {
               const notification = new Notification(`🚨 Alert from ${selectedThread.title}`, {
@@ -2149,43 +2220,16 @@ function App() {
         };
       }
     }, [selectedThread?.id, notificationsEnabled]);
-
-    // Store cursor position before state update (for chat input)
+    
+    // Autosizing textarea logic
     const handleMessageChange = (e) => {
-      if (messageInputRef.current) {
-        cursorPositionRef.current = e.target.selectionStart;
-      }
-      setNewMessage(e.target.value);
+        setNewMessage(e.target.value);
+        if (messageInputRef.current) {
+            messageInputRef.current.style.height = 'auto'; // Reset height
+            messageInputRef.current.style.height = `${messageInputRef.current.scrollHeight}px`;
+        }
     };
-
-    // Restore cursor position after render (for chat input)
-    useEffect(() => {
-      if (messageInputRef.current && document.activeElement === messageInputRef.current) {
-        messageInputRef.current.setSelectionRange(
-          cursorPositionRef.current,
-          cursorPositionRef.current
-        );
-      }
-    }, [newMessage]);
-
-    // Store cursor position for alert textarea
-    const handleAlertChange = (e) => {
-      if (alertInputRef.current) {
-        alertCursorRef.current = e.target.selectionStart;
-      }
-      setAlertMessage(e.target.value);
-    };
-
-    // Restore cursor position for alert textarea
-    useEffect(() => {
-      if (alertInputRef.current && document.activeElement === alertInputRef.current) {
-        alertInputRef.current.setSelectionRange(
-          alertCursorRef.current,
-          alertCursorRef.current
-        );
-      }
-    }, [alertMessage]);
-
+    
     const sendMessage = async () => {
       if (!newMessage.trim()) return;
       
@@ -2198,7 +2242,6 @@ function App() {
         isPending: true
       };
 
-      // Optimistic update
       setSelectedThread(prev => ({
         ...prev,
         chat: [...prev.chat, tempMessage]
@@ -2206,11 +2249,11 @@ function App() {
       
       const messageText = newMessage.trim();
       setNewMessage('');
-      cursorPositionRef.current = 0; // Reset cursor position
+      if (messageInputRef.current) {
+        messageInputRef.current.style.height = 'auto'; // Reset textarea height
+      }
       
-      // Immediately scroll to bottom when *I* send a message (always force scroll for own message)
       requestAnimationFrame(() => scrollToBottom('smooth'));
-
 
       try {
         const messageData = {
@@ -2220,9 +2263,7 @@ function App() {
         };
         
         await threadsAPI.sendMessage(selectedThread.id, messageData);
-        // Socket will handle adding the real message and updating lastMessageId
       } catch (error) {
-        // Remove pending message on error
         setSelectedThread(prev => ({
           ...prev,
           chat: prev.chat.filter(msg => msg.id !== tempMessage.id)
@@ -2243,7 +2284,6 @@ function App() {
       try {
         const result = await threadsAPI.handleRequest(selectedThread.id, userId, approve, currentUser.id);
         if (result.data.success) {
-          // Optimistic update for request handling
           setSelectedThread(prev => ({
             ...prev,
             pendingRequests: prev.pendingRequests.filter(id => id !== userId),
@@ -2253,30 +2293,19 @@ function App() {
         }
       } catch (error) {
         alert('Error handling request');
-        loadThreads(); // Revert on error
+        loadThreads();
       }
     };
 
     const sendAlert = async () => {
       const messageText = cleanBidi(alertMessage);
-
-      if (!messageText) {
-        alert('Please enter an alert message');
-        return;
-      }
+      if (!messageText) return alert('Please enter an alert message');
 
       try {
-        const messageData = {
-          user: 'Alert',
-          userId: currentUser.id,
-          message: messageText
-        };
-        
+        const messageData = { user: 'Alert', userId: currentUser.id, message: messageText };
         await threadsAPI.sendMessage(selectedThread.id, messageData);
-        
         setAlertMessage('');
         setShowAlertModal(false);
-        alertCursorRef.current = 0; // Reset cursor
       } catch (error) {
         console.error('❌ Error sending alert:', error);
         alert('Error sending alert. Please try again.');
@@ -2288,9 +2317,22 @@ function App() {
       return `User_${userId.slice(-4)}`;
     };
 
-    const bubbleColor = isDark ? 'bg-gray-700 text-white' : 'bg-white text-gray-900 shadow-md';
-    const myBubbleColor = isDark ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white shadow-lg';
-    const alertBubbleColor = 'bg-gradient-to-r from-red-100 to-orange-100 border-2 border-orange-400 shadow-xl';
+    // NEW: Memoized logic to add date dividers to the chat
+    const messagesWithDividers = useMemo(() => {
+        if (!selectedThread?.chat) return [];
+        const messages = [];
+        let lastDate = null;
+        selectedThread.chat.forEach(msg => {
+            const msgDate = new Date(msg.timestamp).toDateString();
+            if (msgDate !== lastDate) {
+                messages.push({ id: `divider-${msgDate}`, type: 'divider', date: msg.timestamp });
+                lastDate = msgDate;
+            }
+            messages.push({ ...msg, type: 'message' });
+        });
+        return messages;
+    }, [selectedThread?.chat]);
+
 
     return (
       <div className="fixed inset-0 bg-gray-50 dark:bg-gray-900 z-40 flex flex-col">
@@ -2309,24 +2351,17 @@ function App() {
             </div>
             {(isMember || isCreator) ? (
               <button
-                onClick={() => {
-                  setAlertMessage('');
-                  alertCursorRef.current = 0;
-                  setShowAlertModal(true);
-                }}
+                onClick={() => setShowAlertModal(true)}
                 className="flex items-center gap-1 px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors shadow-lg"
                 title="Send alert notification to all members"
               >
                 <AlertTriangle className="w-4 h-4" />
                 Alert
               </button>
-            ) : (
-              <div className="w-20"></div>
-            )}
+            ) : <div className="w-20"></div>}
           </div>
         </div>
 
-        {/* Pending Requests */}
         {isCreator && selectedThread.pendingRequests.length > 0 && (
           <div className="bg-orange-100 dark:bg-orange-900 border-b border-orange-300 dark:border-orange-700 p-4">
             <h3 className="font-medium text-orange-900 dark:text-orange-200 mb-2">Join Requests ({selectedThread.pendingRequests.length})</h3>
@@ -2335,20 +2370,8 @@ function App() {
                 <div key={userId} className={`flex items-center justify-between p-3 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'}`}>
                   <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{getUsernameById(userId)}</span>
                   <div className="flex gap-2">
-                    <button
-                      onClick={() => handleRequest(userId, false)}
-                      className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded"
-                      title="Reject"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleRequest(userId, true)}
-                      className="p-1 text-green-600 hover:bg-green-100 dark:hover:bg-green-900 rounded"
-                      title="Approve"
-                    >
-                      <Check className="w-4 h-4" />
-                    </button>
+                    <button onClick={() => handleRequest(userId, false)} className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded" title="Reject"><X className="w-4 h-4" /></button>
+                    <button onClick={() => handleRequest(userId, true)} className="p-1 text-green-600 hover:bg-green-100 dark:hover:bg-green-900 rounded" title="Approve"><Check className="w-4 h-4" /></button>
                   </div>
                 </div>
               ))}
@@ -2356,103 +2379,45 @@ function App() {
           </div>
         )}
 
-        {/* Messages Container with new Ref */}
-        <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 chat-container">
-          {selectedThread.chat && selectedThread.chat.length > 0 ? (
-            selectedThread.chat.map(msg => {
-              const sanitizedMessage = cleanBidi(msg.message);
-              const isAlert = msg.user === 'Alert';
-              const isCurrentUser = msg.user === currentUser.username;
-              const isSystemMessage = msg.user === 'System';
-
-              if (isAlert) {
+        {/* Messages Container with Chat Background */}
+        <div ref={chatContainerRef} className={`flex-1 overflow-y-auto p-4 space-y-3 chat-container ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`}>
+          {messagesWithDividers.length > 0 ? (
+            messagesWithDividers.map(item => {
+              if (item.type === 'divider') {
                 return (
-                  <div key={msg.id} className="flex justify-center">
-                    <div className={`w-full max-w-lg px-5 py-3 rounded-xl ${alertBubbleColor}`}>
-                      <div className="flex items-center justify-center gap-2 mb-2 text-red-700 dark:text-red-500 font-bold">
-                        <span className="text-2xl animate-pulse" role="img" aria-label="alert">🚨</span>
-                        <span className="tracking-wide uppercase text-sm">Creator Alert</span>
-                        <span className="text-2xl animate-pulse" role="img" aria-label="alert">🚨</span>
-                      </div>
-                      <div
-                        className="text-base font-semibold text-center text-gray-900 dark:text-gray-800"
-                        dir="ltr"
-                        style={{ direction: 'ltr', unicodeBidi: 'plaintext' }}
-                      >
-                        {sanitizedMessage}
-                      </div>
-                      <div className="text-xs text-orange-700 opacity-80 mt-2 flex items-center justify-center gap-1">
-                        {formatTime(msg.timestamp)}
-                      </div>
-                    </div>
+                  <div key={item.id} className="flex justify-center my-4">
+                    <span className={`px-3 py-1 text-xs rounded-full ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-white text-gray-600 shadow-md'}`}>
+                      {formatDateDivider(item.date)}
+                    </span>
                   </div>
                 );
               }
-
-              if (isSystemMessage) {
-                 return (
-                    <div key={msg.id} className="flex justify-center">
-                        <div className={`px-4 py-2 rounded-lg max-w-xs ${isDark ? 'bg-gray-700/50 text-gray-400' : 'bg-gray-200 text-gray-600'} text-center text-sm`}>
-                            {sanitizedMessage}
-                        </div>
-                    </div>
-                 );
-              }
-
+              // It's a message, render the memoized component
               return (
-                <div
-                  key={msg.id}
-                  className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className="max-w-xs lg:max-w-md">
-                    <div className={`text-xs font-medium mb-1 ${isCurrentUser ? 'text-right' : 'text-left'} ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {!isCurrentUser && <strong>{msg.user}</strong>}
-                    </div>
-                    <div
-                      className={`px-4 py-3 rounded-2xl ${isCurrentUser ? 'rounded-br-none' : 'rounded-tl-none'} ${
-                        isCurrentUser
-                          ? `${myBubbleColor} ${msg.isPending ? 'opacity-70' : ''}`
-                          : bubbleColor
-                      }`}
-                    >
-                      <div
-                        className="text-sm"
-                        dir="ltr"
-                        style={{ direction: 'ltr', unicodeBidi: 'plaintext', textAlign: 'left' }}
-                      >
-                        {sanitizedMessage}
-                      </div>
-                      <div
-                        className={`text-xs opacity-80 mt-1 flex items-center ${
-                          isCurrentUser ? 'justify-end' : 'justify-start'
-                        } gap-1`}
-                      >
-                        {formatTime(msg.timestamp)}
-                        {msg.isPending && <span className="text-xs">⏳</span>}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <ChatMessage
+                  key={item.id}
+                  msg={item}
+                  currentUser={currentUser}
+                  isDark={isDark}
+                />
               );
             })
-          ) : (
-            <div className={`text-center mt-8 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Start the conversation!</div>
-          )}
+          ) : <div className={`text-center mt-8 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Start the conversation!</div>}
           <div ref={chatEndRef} />
         </div>
 
-        {/* Message Input */}
+        {/* Message Input with Autosizing Textarea */}
         {(isMember || isAdmin) && (
           <div className={`p-4 shadow-2xl transition-colors duration-300 ${isDark ? 'bg-gray-800 border-t border-gray-700' : 'bg-white border-t border-gray-200'}`}>
-            <div className="flex gap-2 items-center">
-              <input
+            <div className="flex gap-2 items-end">
+              <textarea
                 ref={messageInputRef}
-                type="text"
-                placeholder={isAdmin && !isMember ? "Admin view only - cannot send messages" : "Type a message..."}
+                rows="1"
+                placeholder={isAdmin && !isMember ? "Admin view only" : "Type a message..."}
                 value={newMessage}
                 onChange={handleMessageChange}
                 onKeyDown={handleKeyPress}
-                className={`flex-1 p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                className={`flex-1 p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none max-h-40 overflow-y-auto ${
                   isDark 
                     ? 'bg-gray-700 text-white border-gray-600 placeholder-gray-400' 
                     : 'bg-gray-100 text-gray-900 border-gray-300 placeholder-gray-500'
@@ -2460,7 +2425,6 @@ function App() {
                 autoFocus
                 disabled={isAdmin && !isMember}
                 dir="ltr"
-                style={{ direction: 'ltr' }}
               />
               <button
                 onClick={sendMessage}
@@ -2473,7 +2437,6 @@ function App() {
           </div>
         )}
 
-        {/* Alert Modal with Fixed Cursor */}
         {showAlertModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className={`rounded-lg p-6 w-full max-w-md ${isDark ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}>
@@ -2483,11 +2446,7 @@ function App() {
                   <h3 className="text-xl font-bold">Send Alert</h3>
                 </div>
                 <button 
-                  onClick={() => {
-                    setShowAlertModal(false);
-                    setAlertMessage('');
-                    alertCursorRef.current = 0;
-                  }} 
+                  onClick={() => setShowAlertModal(false)} 
                   className={`text-gray-500 hover:text-red-500 ${isDark ? 'text-gray-400 hover:text-red-400' : ''}`}
                 >
                   <X className="w-5 h-5" />
@@ -2497,20 +2456,14 @@ function App() {
                 Choose a preset alert or type your own message. This sends a persistent notification.
               </p>
               
-              {/* Preset Buttons */}
               <div className="space-y-2 mb-4">
-                {ALERT_PRESETS.map((phrase) => {
-                  const isSelected = alertMessage === phrase;
-                  return (
+                {ALERT_PRESETS.map((phrase) => (
                     <button
                       key={phrase}
                       type="button"
-                      onClick={() => {
-                        setAlertMessage(phrase);
-                        alertCursorRef.current = phrase.length; // Set cursor to end
-                      }}
+                      onClick={() => setAlertMessage(phrase)}
                       className={`w-full text-left px-4 py-3 border rounded-lg transition-colors text-sm ${
-                        isSelected
+                        alertMessage === phrase
                           ? 'bg-red-600 text-white border-red-600 shadow-md'
                           : isDark
                           ? 'bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600'
@@ -2519,11 +2472,9 @@ function App() {
                     >
                       {phrase}
                     </button>
-                  );
-                })}
+                ))}
               </div>
 
-              {/* Custom Alert Input */}
               <div className="mb-4">
                 <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">
                   Or type a custom alert
@@ -2532,14 +2483,13 @@ function App() {
                   ref={alertInputRef}
                   placeholder="Type your alert message..."
                   value={alertMessage}
-                  onChange={handleAlertChange}
+                  onChange={(e) => setAlertMessage(e.target.value)}
                   className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none text-gray-900 dark:text-white ${
                     isDark ? 'bg-gray-700 border-gray-600 placeholder-gray-400' : 'bg-white border-gray-300 placeholder-gray-500'
                   }`}
                   rows={3}
                   maxLength={200}
                   dir="ltr"
-                  style={{ direction: 'ltr', textAlign: 'left' }}
                 />
                 {alertMessage && (
                   <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{alertMessage.length}/200 characters</div>
@@ -2548,11 +2498,7 @@ function App() {
 
               <div className="flex gap-3">
                 <button
-                  onClick={() => {
-                    setShowAlertModal(false);
-                    setAlertMessage('');
-                    alertCursorRef.current = 0;
-                  }}
+                  onClick={() => setShowAlertModal(false)}
                   className={`flex-1 px-4 py-2 text-gray-700 rounded-lg transition-colors ${isDark ? 'bg-gray-600 text-gray-200 hover:bg-gray-500' : 'bg-gray-100 hover:bg-gray-200'}`}
                 >
                   Cancel
@@ -2592,16 +2538,12 @@ function App() {
 
   // Mobile-first responsive routing
   if (isMobile) {
-    // Show chat view if thread is selected
-    if (selectedThread) {
-      return <ChatView />;
-    }
+    if (selectedThread) return <ChatView />;
     
-    // Main mobile router with page navigation (Pass filtered/sorted data)
     return (
       <MobileRouter
         currentUser={currentUser}
-        threads={getFilteredAndSortedThreads()} // FIX: Pass filtered/sorted threads
+        threads={getFilteredAndSortedThreads()}
         categories={categories}
         sortOptions={sortOptions}
         filterCategory={filterCategory}
@@ -2701,7 +2643,6 @@ function App() {
                 Hi, <span className="font-semibold">{currentUser.username}</span>!
               </span>
               
-              {/* Theme Toggle */}
               <button
                 onClick={toggleTheme}
                 className={`p-2 rounded-lg transition-all ${
@@ -2714,7 +2655,6 @@ function App() {
                 {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
               
-              {/* Gossips Button */}
               <button
                 onClick={() => setShowGossips(true)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all shadow-lg ${
@@ -2727,7 +2667,6 @@ function App() {
                 Gossips
               </button>
               
-              {/* Notification Permission Button */}
               {!notificationsEnabled && 'Notification' in window && Notification.permission !== 'denied' && (
                 <button
                   onClick={async () => {
@@ -2772,7 +2711,6 @@ function App() {
                     setShowLoginForm(true);
                     setSelectedThread(null);
                     setShowGossips(false);
-                    // Clear localStorage on logout
                     localStorage.removeItem('currentUser');
                   }
                 }}
@@ -2786,11 +2724,9 @@ function App() {
         </div>
       </header>
       
-      {/* Professional Hero Section */}
       <div className={`${isDark ? 'bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900' : 'bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50'} border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
         <div className="max-w-6xl mx-auto px-4 py-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-            {/* Left: Welcome Message */}
             <div className="flex-1 animate-slide-in">
               <h2 className={`text-4xl font-bold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 Welcome back, <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{currentUser.username}</span>! 👋
@@ -2799,7 +2735,6 @@ function App() {
                 Discover and join temporary event threads that match your interests
               </p>
               
-              {/* Quick Stats */}
               <div className="grid grid-cols-3 gap-4 mb-6">
                 <div className={`${isDark ? 'bg-gray-800/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${isDark ? 'border-gray-700' : 'border-gray-200'} hover-lift`}>
                   <div className={`text-2xl font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
@@ -2822,7 +2757,6 @@ function App() {
               </div>
             </div>
             
-            {/* Right: Quick Actions */}
             <div className="flex flex-col gap-3 animate-fade-in">
               <button
                 onClick={() => setShowCreateForm(true)}
@@ -2849,9 +2783,7 @@ function App() {
       </div>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
-        {/* Filter and Sort Bar - Professional Design */}
         <div className="mb-8 space-y-6 animate-fade-in">
-          {/* Category Filter */}
           <div className={`rounded-2xl border transition-all shadow-xl ${
             isDark 
               ? 'bg-gray-800/70 backdrop-blur-xl border-gray-700' 
@@ -2889,7 +2821,6 @@ function App() {
             </div>
           </div>
 
-          {/* Sort Options - Modern Card Design */}
           <div className={`rounded-2xl border transition-all shadow-xl ${
             isDark 
               ? 'bg-gray-800/70 backdrop-blur-xl border-gray-700' 
@@ -2924,7 +2855,6 @@ function App() {
           </div>
         </div>
 
-        {/* Threads Section Header */}
         <div className="mb-6 flex items-center justify-between animate-fade-in">
           <h2 className={`text-2xl font-bold flex items-center gap-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             <Sparkles className="w-7 h-7 text-yellow-500" />
@@ -2935,7 +2865,6 @@ function App() {
           </h2>
         </div>
         
-        {/* Empty State or Thread List */}
         {getFilteredAndSortedThreads().length === 0 ? (
           <div className={`text-center py-20 rounded-2xl border ${isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-white/80 border-gray-200'} animate-fade-in`}>
             <div className="max-w-md mx-auto">
@@ -2974,15 +2903,12 @@ function App() {
                       : 'bg-white/90 backdrop-blur-xl border-gray-200'
                   }`}
                 >
-                  {/* Card Header with Gradient */}
                   <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4">
                     <h3 className="font-bold text-white text-xl mb-1">{thread.title}</h3>
                     <p className="text-blue-100 text-sm">{thread.description}</p>
                   </div>
                   
-                  {/* Card Body */}
                   <div className="p-5">
-                    {/* Thread Metadata */}
                     <div className="grid grid-cols-2 gap-3 mb-4">
                       <div className={`flex items-center gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                         <User className="w-4 h-4 text-blue-500" />
@@ -3002,7 +2928,6 @@ function App() {
                       </div>
                     </div>
                     
-                    {/* Pending Requests Badge */}
                     {hasPendingRequests && (
                       <div className="mb-4 px-3 py-2 bg-orange-100 border border-orange-300 rounded-lg flex items-center gap-2">
                         <Bell className="w-4 h-4 text-orange-600" />
@@ -3012,7 +2937,6 @@ function App() {
                       </div>
                     )}
                     
-                    {/* Tags */}
                     <div className="flex flex-wrap gap-2 mb-4">
                       {thread.tags.map(tag => (
                         <span 
@@ -3029,7 +2953,6 @@ function App() {
                       ))}
                     </div>
                     
-                    {/* Action Buttons */}
                     <div className="flex gap-2 flex-wrap">
                       {isCreator && (
                         <button
