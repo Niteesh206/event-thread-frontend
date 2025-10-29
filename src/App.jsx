@@ -2430,59 +2430,47 @@ function App() {
   };
 
   const getFilteredAndSortedThreads = () => {
-  if (!Array.isArray(threads)) return [];
+    let filtered = threads;
 
-  // Normalize the filter category
-  const category = (filterCategory || 'all').toString().trim().toLowerCase();
-
-  // Step 1: Filter threads
-  let filtered = threads.filter(thread => {
-    if (category === 'all') return true;
-
-    const tags = (thread.tags || []).map(tag => (tag || '').toString().trim().toLowerCase());
-
-    // Define category synonyms
-    const categoryKeywords = {
-      tech: ['tech', 'coding', 'programming', 'developer', 'software'],
-      study: ['study', 'learning', 'education', 'school'],
-      sports: ['sport', 'sports', 'fitness', 'workout', 'gym'],
-      food: ['food', 'drink', 'coffee', 'restaurant'],
-      entertainment: ['entertainment', 'movie', 'film', 'show', 'music'],
-    };
-
-    // Direct match
-    if (tags.includes(category)) return true;
-
-    // Keyword match (if category exists in map)
-    if (categoryKeywords[category]) {
-      return tags.some(tag =>
-        categoryKeywords[category].some(keyword => tag.includes(keyword))
-      );
+    if (filterCategory !== 'all') {
+      filtered = threads.filter(thread => {
+        if (!thread.tags || thread.tags.length === 0) return false;
+        
+        return thread.tags.some(tag => {
+          const tagLower = tag.toLowerCase();
+          const categoryLower = filterCategory.toLowerCase();
+          
+          if (tagLower === categoryLower) return true;
+          if (tagLower.includes(categoryLower)) return true;
+          
+          if (filterCategory === 'tech' && (tagLower.includes('coding') || tagLower.includes('programming') || tagLower.includes('tech'))) return true;
+          if (filterCategory === 'study' && (tagLower.includes('study') || tagLower.includes('learning') || tagLower.includes('education'))) return true;
+          if (filterCategory === 'sports' && (tagLower.includes('sport') || tagLower.includes('fitness') || tagLower.includes('workout'))) return true;
+          if (filterCategory === 'food' && (tagLower.includes('food') || tagLower.includes('drink') || tagLower.includes('coffee'))) return true;
+          if (filterCategory === 'entertainment' && (tagLower.includes('entertainment') || tagLower.includes('movie') || tagLower.includes('film'))) return true;
+          
+          return false;
+        });
+      });
     }
 
-    // Partial text match
-    return tags.some(tag => tag.includes(category));
-  });
-
-  // Step 2: Sort threads
-  return [...filtered].sort((a, b) => {
-    switch (sortBy) {
-      case 'newest':
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      case 'oldest':
-        return new Date(a.createdAt) - new Date(b.createdAt);
-      case 'mostMembers':
-        return (b.members?.length || 0) - (a.members?.length || 0);
-      case 'expiringSoon':
-        return new Date(a.expiresAt) - new Date(b.expiresAt);
-      case 'mostActive':
-        return (b.chat?.length || 0) - (a.chat?.length || 0);
-      default:
-        return 0;
-    }
-  });
-};
-
+    return [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        case 'oldest':
+          return new Date(a.createdAt) - new Date(b.createdAt);
+        case 'mostMembers':
+          return (b.members?.length || 0) - (a.members?.length || 0);
+        case 'expiringSoon':
+          return new Date(a.expiresAt) - new Date(b.expiresAt);
+        case 'mostActive':
+          return (b.chat?.length || 0) - (a.chat?.length || 0);
+        default:
+          return 0;
+      }
+    });
+  };
 
   const loadAdminDashboard = async () => {
     try {
