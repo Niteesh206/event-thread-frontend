@@ -634,7 +634,7 @@ const GossipsPage = ({ currentUser, socketRef, onBack }) => {
 };
 
 // Reddit-style Comment Component
-const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdded, maxDepth = 5 }) => {
+const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdded }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [replyText, setReplyText] = useState('');
@@ -651,10 +651,6 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
     onCommentAdded();
   };
 
-  // Limit indentation depth for better UX
-  const effectiveDepth = Math.min(depth, maxDepth);
-  const isMaxDepth = depth >= maxDepth;
-
   const indentColor = [
     'border-blue-400',
     'border-green-400', 
@@ -663,27 +659,29 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
     'border-pink-400',
     'border-yellow-400',
     'border-red-400'
-  ][effectiveDepth % 7];
+  ][depth % 7];
 
   return (
-    <div className={`${effectiveDepth > 0 ? 'ml-4' : ''}`}>
-      <div className={`flex gap-2 ${effectiveDepth > 0 ? `border-l-2 ${indentColor} pl-2` : ''}`}>
+    <div className={`${depth > 0 ? 'ml-4' : ''}`}>
+      <div className={`flex gap-2 ${depth > 0 ? `border-l-2 ${indentColor} pl-2` : ''}`}>
+        {/* Collapse button */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="flex-shrink-0 w-6 h-6 mt-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded flex items-center justify-center text-gray-500"
+          className="flex-shrink-0 w-6 h-6 mt-1 hover:bg-gray-200 rounded flex items-center justify-center text-gray-500"
         >
           {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
         </button>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="text-xs font-bold text-gray-900 dark:text-white hover:underline cursor-pointer">
+          {/* Comment header */}
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-bold text-gray-900 hover:underline cursor-pointer">
               {comment.author}
             </span>
             {comment.replyTo && (
               <>
                 <span className="text-xs text-gray-400">→</span>
-                <span className="text-xs text-gray-600 dark:text-gray-400 hover:underline cursor-pointer">
+                <span className="text-xs text-gray-600 hover:underline cursor-pointer">
                   @{comment.replyTo}
                 </span>
               </>
@@ -693,33 +691,35 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
             </span>
           </div>
 
+          {/* Comment content */}
           {!collapsed && (
             <>
-              <p className="text-sm text-gray-800 dark:text-gray-200 mb-2 break-words">{comment.content}</p>
+              <p className="text-sm text-gray-800 mb-2 break-words">{comment.content}</p>
 
+              {/* Action buttons */}
               <div className="flex items-center gap-3 mb-2">
-                {!isMaxDepth && (
-                  <button
-                    onClick={() => setShowReplyBox(!showReplyBox)}
-                    className="text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                  >
-                    Reply
-                  </button>
-                )}
-                {isMaxDepth && (
-                  <span className="text-xs text-gray-400 dark:text-gray-600">
-                    Max reply depth reached
-                  </span>
-                )}
+                <button
+                  onClick={() => setShowReplyBox(!showReplyBox)}
+                  className="text-xs font-bold text-gray-500 hover:text-gray-700"
+                >
+                  Reply
+                </button>
+                <button className="text-xs font-bold text-gray-500 hover:text-gray-700">
+                  Share
+                </button>
+                <button className="text-xs font-bold text-gray-500 hover:text-gray-700">
+                  Report
+                </button>
               </div>
 
-              {showReplyBox && !isMaxDepth && (
-                <div className="mb-3 bg-gray-50 dark:bg-gray-800 rounded p-2">
+              {/* Reply box */}
+              {showReplyBox && (
+                <div className="mb-3 bg-gray-50 rounded p-2">
                   <textarea
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
                     placeholder={`Reply to ${comment.author}...`}
-                    className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-gray-700"
+                    className="w-full p-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 placeholder-gray-500"
                     rows={3}
                     maxLength={300}
                   />
@@ -731,7 +731,7 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
                           setShowReplyBox(false);
                           setReplyText('');
                         }}
-                        className="px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                        className="px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-200 rounded"
                       >
                         Cancel
                       </button>
@@ -747,6 +747,7 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
                 </div>
               )}
 
+              {/* Nested replies */}
               {comment.replies && comment.replies.length > 0 && (
                 <div className="mt-2">
                   {comment.replies.map(reply => (
@@ -756,7 +757,6 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
                       currentUser={currentUser}
                       onReply={onReply}
                       depth={depth + 1}
-                      maxDepth={maxDepth}
                       onCommentAdded={onCommentAdded}
                     />
                   ))}
@@ -766,7 +766,7 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
           )}
 
           {collapsed && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+            <p className="text-xs text-gray-500 italic">
               [{comment.replies?.length || 0} {comment.replies?.length === 1 ? 'reply' : 'replies'} hidden]
             </p>
           )}
