@@ -1328,6 +1328,7 @@
 //2 with improved ui
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Clock, Users, MapPin, MessageCircle, Plus, X, Check, Hash, Calendar, Send, LogOut, User, Shield, Trash2, Eye, MessageSquare, Moon, Sun, Bell, Sparkles, ArrowUpDown, TrendingUp, TrendingDown, Zap, AlertTriangle } from 'lucide-react';
+import TextareaAutosize from 'react-textarea-autosize';
 import { authAPI, threadsAPI, adminAPI } from './services/api';
 import LoginPage from './components/LoginPage';
 import GossipsPage from './components/GossipsPage';
@@ -1372,7 +1373,6 @@ const formatDateDivider = (dateString) => {
     return date.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
 };
 
-
 const getTimeRemaining = (expiresAt) => {
   const diff = new Date(expiresAt) - new Date();
   const hours = Math.floor(diff / (1000 * 60 * 60));
@@ -1382,9 +1382,6 @@ const getTimeRemaining = (expiresAt) => {
   return 'Expiring soon';
 };
 
-// =================================================================================
-// Memoized ChatMessage Component to prevent re-renders
-// =================================================================================
 const ChatMessage = React.memo(({ msg, currentUser, isDark }) => {
     const sanitizedMessage = cleanBidi(msg.message);
     const isAlert = msg.user === 'Alert';
@@ -1461,7 +1458,6 @@ const ChatMessage = React.memo(({ msg, currentUser, isDark }) => {
       </div>
     );
 });
-
 
 function App() {
   const { isDark, toggleTheme } = useTheme();
@@ -1552,9 +1548,7 @@ function App() {
   // Initialize Socket.io
   useEffect(() => {
     if (currentUser && !showLoginForm) {
-      socketRef.current = io(SOCKET_URL, {
-        transports: ['websocket', 'polling']
-      });
+      socketRef.current = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
 
       socketRef.current.on('connect', () => console.log('✅ Socket connected'));
       socketRef.current.on('refresh-threads', () => loadThreads());
@@ -1567,20 +1561,12 @@ function App() {
             icon: '/vite.svg',
             tag: `thread-${data.threadId}`,
           });
-          notification.onclick = () => {
-            window.focus();
-            loadThreads();
-            notification.close();
-          };
+          notification.onclick = () => { window.focus(); loadThreads(); notification.close(); };
         }
         loadThreads();
       });
 
-      return () => {
-        if (socketRef.current) {
-          socketRef.current.disconnect();
-        }
-      };
+      return () => { if (socketRef.current) socketRef.current.disconnect(); };
     }
   }, [currentUser, showLoginForm, notificationsEnabled]);
 
@@ -1588,20 +1574,14 @@ function App() {
   useEffect(() => {
     if (currentUser && !showLoginForm) {
       loadThreads();
-      const interval = setInterval(() => {
-        if (!showCreateForm && !showEditForm) {
-          loadThreads();
-        }
-      }, 60000);
+      const interval = setInterval(() => { if (!showCreateForm && !showEditForm) loadThreads(); }, 60000);
       return () => clearInterval(interval);
     }
   }, [currentUser, showLoginForm, showCreateForm, showEditForm]);
 
   // Load admin dashboard
   useEffect(() => {
-    if (currentUser?.isAdmin && showAdminDashboard) {
-      loadAdminDashboard();
-    }
+    if (currentUser?.isAdmin && showAdminDashboard) loadAdminDashboard();
   }, [currentUser, showAdminDashboard]);
 
   const loadThreads = async () => {
@@ -1614,19 +1594,13 @@ function App() {
           setSelectedThread(updatedThread || null);
         }
       }
-    } catch (error) {
-      console.error('Error loading threads:', error);
-    }
+    } catch (error) { console.error('Error loading threads:', error); }
   };
 
   const getFilteredAndSortedThreads = () => {
     let filtered = threads;
     if (filterCategory !== 'all') {
-      filtered = threads.filter(thread => 
-        thread.tags.some(tag => 
-          tag.toLowerCase().includes(filterCategory.toLowerCase())
-        )
-      );
+      filtered = threads.filter(thread => thread.tags.some(tag => tag.toLowerCase().includes(filterCategory.toLowerCase())));
     }
     return [...filtered].sort((a, b) => {
       switch (sortBy) {
@@ -1643,58 +1617,35 @@ function App() {
   const loadAdminDashboard = async () => {
     try {
       const response = await adminAPI.getDashboard(currentUser.id);
-      if (response.data.success) {
-        setAdminData(response.data.data);
-      }
-    } catch (error) {
-      console.error('Error loading admin dashboard:', error);
-    }
+      if (response.data.success) setAdminData(response.data.data);
+    } catch (error) { console.error('Error loading admin dashboard:', error); }
   };
 
   const handleLogin = async (username, password, isAdmin) => {
     try {
       const response = await authAPI.login(username, password, isAdmin);
       if (response.data.success) {
-        const user = response.data.user;
-        setCurrentUser(user);
+        setCurrentUser(response.data.user);
         setShowLoginForm(false);
-        localStorage.setItem('currentUser', JSON.stringify(user));
-      } else {
-        throw new Error(response.data.message || 'Login failed.');
-      }
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Login failed.');
-    }
+        localStorage.setItem('currentUser', JSON.stringify(response.data.user));
+      } else { throw new Error(response.data.message || 'Login failed.'); }
+    } catch (error) { throw new Error(error.response?.data?.message || 'Login failed.'); }
   };
 
   const handleRegister = async (username, password) => {
     try {
       const response = await authAPI.register(username, password);
       if (response.data.success) {
-        const user = response.data.user;
-        setCurrentUser(user);
+        setCurrentUser(response.data.user);
         setShowLoginForm(false);
-        localStorage.setItem('currentUser', JSON.stringify(user));
-        
+        localStorage.setItem('currentUser', JSON.stringify(response.data.user));
         if ('Notification' in window && Notification.permission === 'default') {
           setTimeout(() => {
-            Notification.requestPermission().then(permission => {
-              if (permission === 'granted') {
-                setNotificationsEnabled(true);
-                new Notification('Welcome to Prastha! 🎉', {
-                  body: 'You\'ll get notified about new events.',
-                  icon: '/vite.svg'
-                });
-              }
-            });
+            Notification.requestPermission().then(p => { if (p === 'granted') setNotificationsEnabled(true); });
           }, 1000);
         }
-      } else {
-        throw new Error(response.data.message || 'Registration failed.');
-      }
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Registration failed.');
-    }
+      } else { throw new Error(response.data.message || 'Registration failed.'); }
+    } catch (error) { throw new Error(error.response?.data?.message || 'Registration failed.'); }
   };
 
   const AdminDashboard = () => {
@@ -1799,20 +1750,20 @@ function App() {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">Create Event Thread</h2><button onClick={() => setShowCreateForm(false)}><X/></button></div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center mb-4"><h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Create Event Thread</h2><button onClick={() => setShowCreateForm(false)} className={isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}><X/></button></div>
           <div className="space-y-4">
-            <input type="text" placeholder="Event Title" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className="w-full p-3 border rounded-lg" />
-            <textarea placeholder="Description" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} className="w-full p-3 border rounded-lg" rows={3}/>
-            <input type="text" placeholder="Location" value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} className="w-full p-3 border rounded-lg" />
-            <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className="w-full p-3 border rounded-lg">
+            <input type="text" placeholder="Event Title" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'}`} dir="ltr" />
+            <textarea placeholder="Description" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'}`} rows={3} dir="ltr" />
+            <input type="text" placeholder="Location" value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'}`} dir="ltr" />
+            <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
               {categories.filter(c=>c.id!=='all').map(cat=><option key={cat.id} value={cat.id}>{cat.label}</option>)}
             </select>
-            <input type="text" placeholder="Additional Tags (comma-separated)" value={formData.tags} onChange={(e) => setFormData({...formData, tags: e.target.value})} className="w-full p-3 border rounded-lg" />
-            <select value={formData.duration} onChange={(e) => setFormData({...formData, duration: e.target.value})} className="w-full p-3 border rounded-lg">
+            <input type="text" placeholder="Additional Tags (comma-separated)" value={formData.tags} onChange={(e) => setFormData({...formData, tags: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'}`} dir="ltr" />
+            <select value={formData.duration} onChange={(e) => setFormData({...formData, duration: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
               <option value="1">1 hour</option><option value="2">2 hours</option><option value="4">4 hours</option><option value="8">8 hours</option>
             </select>
-            <div className="flex gap-3"><button onClick={() => setShowCreateForm(false)} className="flex-1 py-2 bg-gray-100 rounded-lg">Cancel</button><button onClick={handleSubmit} disabled={isSubmitting} className="flex-1 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50">{isSubmitting ? 'Creating...' : 'Create'}</button></div>
+            <div className="flex gap-3"><button onClick={() => setShowCreateForm(false)} className={`flex-1 py-2 rounded-lg ${isDark ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-900'}`}>Cancel</button><button onClick={handleSubmit} disabled={isSubmitting} className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">{isSubmitting ? 'Creating...' : 'Create'}</button></div>
           </div>
         </div>
       </div>
@@ -1840,14 +1791,14 @@ function App() {
     };
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md">
-          <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">Edit Thread</h2><button onClick={() => {setShowEditForm(false); setEditingThread(null);}}><X/></button></div>
+        <div className={`rounded-lg p-6 w-full max-w-md ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+          <div className="flex justify-between items-center mb-4"><h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Edit Thread</h2><button onClick={() => {setShowEditForm(false); setEditingThread(null);}} className={isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}><X/></button></div>
           <div className="space-y-4">
-            <input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-3 border rounded-lg" />
-            <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full p-3 border rounded-lg" rows={3} />
-            <input type="text" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full p-3 border rounded-lg" />
-            <input type="text" value={formData.tags} onChange={e => setFormData({...formData, tags: e.target.value})} className="w-full p-3 border rounded-lg" />
-            <div className="flex gap-3"><button onClick={() => {setShowEditForm(false); setEditingThread(null);}} className="flex-1 py-2 bg-gray-100 rounded-lg">Cancel</button><button onClick={handleSubmit} disabled={isSubmitting} className="flex-1 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50">{isSubmitting ? 'Updating...' : 'Update'}</button></div>
+            <input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`} dir="ltr" />
+            <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`} rows={3} dir="ltr" />
+            <input type="text" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`} dir="ltr" />
+            <input type="text" value={formData.tags} onChange={e => setFormData({...formData, tags: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`} dir="ltr" />
+            <div className="flex gap-3"><button onClick={() => {setShowEditForm(false); setEditingThread(null);}} className={`flex-1 py-2 rounded-lg ${isDark ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-900'}`}>Cancel</button><button onClick={handleSubmit} disabled={isSubmitting} className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">{isSubmitting ? 'Updating...' : 'Update'}</button></div>
           </div>
         </div>
       </div>
@@ -1864,7 +1815,6 @@ function App() {
     const isAdmin = currentUser.isAdmin;
     
     const chatContainerRef = useRef(null);
-    const messageInputRef = useRef(null);
     const chatEndRef = useRef(null);
     const lastMessageId = selectedThread.chat?.[selectedThread.chat.length - 1]?.id;
 
@@ -1886,30 +1836,21 @@ function App() {
         socketRef.current.emit('join-thread', selectedThread.id);
         
         const handleNewMessage = (message) => {
-          if (message.message) {
-            message.message = cleanBidi(message.message);
-          }
           setSelectedThread(prev => {
-            if (!prev || (message.threadId && prev.id !== message.threadId)) return prev;
-            if (prev.chat.some(msg => msg.id === message.id)) return prev;
+            if (!prev || (message.threadId && prev.id !== message.threadId) || prev.chat.some(msg => msg.id === message.id)) {
+              return prev;
+            }
             return { ...prev, chat: [...prev.chat, message] };
           });
 
-          if (message.user === 'Alert' && message.userId !== currentUser.id) {
-            if ('Notification' in window && Notification.permission === 'granted') {
-              const notification = new Notification(`🚨 Alert from ${selectedThread.title}`, {
-                body: `\u202A${cleanBidi(message.message)}`,
-                icon: '/vite.svg',
-                tag: `alert-${message.id}`,
-                requireInteraction: true,
-              });
-              notification.onclick = () => { window.focus(); notification.close(); };
-            }
+          if (message.user === 'Alert' && message.userId !== currentUser.id && Notification.permission === 'granted') {
+            new Notification(`🚨 Alert from ${selectedThread.title}`, {
+              body: `\u202A${cleanBidi(message.message)}`, icon: '/vite.svg', tag: `alert-${message.id}`, requireInteraction: true,
+            }).onclick = () => { window.focus(); };
           }
         };
 
         socketRef.current.on('new-message', handleNewMessage);
-
         return () => {
           socketRef.current.emit('leave-thread', selectedThread.id);
           socketRef.current.off('new-message', handleNewMessage);
@@ -1919,31 +1860,18 @@ function App() {
     
     const handleMessageChange = (e) => {
         setNewMessage(e.target.value);
-        if (messageInputRef.current) {
-            messageInputRef.current.style.height = 'auto';
-            messageInputRef.current.style.height = `${messageInputRef.current.scrollHeight}px`;
-        }
     };
     
     const sendMessage = async () => {
       if (!newMessage.trim()) return;
-      
       const messageText = newMessage.trim();
       setNewMessage('');
-      if (messageInputRef.current) {
-        messageInputRef.current.style.height = 'auto';
-      }
-
+      
       try {
-        await threadsAPI.sendMessage(selectedThread.id, {
-          user: currentUser.username,
-          userId: currentUser.id,
-          message: messageText
-        });
-        // The message will appear via the socket listener, ensuring no race condition.
+        await threadsAPI.sendMessage(selectedThread.id, { user: currentUser.username, userId: currentUser.id, message: messageText });
         requestAnimationFrame(() => scrollToBottom('smooth'));
       } catch (error) {
-        setNewMessage(messageText); // Restore message on failure
+        setNewMessage(messageText);
         alert('Error sending message');
       }
     };
@@ -1959,28 +1887,20 @@ function App() {
       try {
         await threadsAPI.handleRequest(selectedThread.id, userId, approve, currentUser.id);
         loadThreads();
-      } catch (error) {
-        alert('Error handling request');
-      }
+      } catch (error) { alert('Error handling request'); }
     };
 
     const sendAlert = async () => {
       const messageText = cleanBidi(alertMessage);
       if (!messageText) return alert('Please enter an alert message');
-
       try {
         await threadsAPI.sendMessage(selectedThread.id, { user: 'Alert', userId: currentUser.id, message: messageText });
         setAlertMessage('');
         setShowAlertModal(false);
-      } catch (error) {
-        alert('Error sending alert.');
-      }
+      } catch (error) { alert('Error sending alert.'); }
     };
 
-    const getUsernameById = (userId) => {
-      if (userId === currentUser?.id) return currentUser.username;
-      return `User_${userId.slice(-4)}`;
-    };
+    const getUsernameById = (userId) => (userId === currentUser?.id) ? currentUser.username : `User_${userId.slice(-4)}`;
 
     const messagesWithDividers = useMemo(() => {
         if (!selectedThread?.chat) return [];
@@ -2000,22 +1920,14 @@ function App() {
 
     return (
       <div className="fixed inset-0 bg-gray-50 dark:bg-gray-900 z-40 flex flex-col">
-        {/* Header */}
         <div className={`shadow-lg p-4 transition-colors duration-300 ${isDark ? 'bg-gray-800 border-b border-gray-700' : 'bg-white border-b border-gray-200'}`}>
           <div className="flex items-center justify-between">
-            <button onClick={() => setSelectedThread(null)} className="text-gray-600 dark:text-gray-300 hover:text-blue-500 dark:hover:text-blue-400">
-              ← Back
-            </button>
+            <button onClick={() => setSelectedThread(null)} className="text-gray-600 dark:text-gray-300 hover:text-blue-500 dark:hover:text-blue-400">← Back</button>
             <div className="text-center flex-1 mx-4">
               <h2 className={`font-bold text-lg truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{selectedThread.title}</h2>
-              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                <Users className="w-3 h-3 inline mr-1" />
-                {selectedThread.members.length} members • {getTimeRemaining(selectedThread.expiresAt)} left
-              </p>
+              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}><Users className="w-3 h-3 inline mr-1" />{selectedThread.members.length} members • {getTimeRemaining(selectedThread.expiresAt)} left</p>
             </div>
-            {(isMember || isCreator) ? (
-              <button onClick={() => setShowAlertModal(true)} className="flex items-center gap-1 px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700" title="Send alert"><AlertTriangle className="w-4 h-4" />Alert</button>
-            ) : <div className="w-20"></div>}
+            {(isMember || isCreator) ? (<button onClick={() => setShowAlertModal(true)} className="flex items-center gap-1 px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700" title="Send alert"><AlertTriangle className="w-4 h-4" />Alert</button>) : <div className="w-20"></div>}
           </div>
         </div>
 
@@ -2039,9 +1951,7 @@ function App() {
         <div ref={chatContainerRef} className={`flex-1 overflow-y-auto p-4 space-y-3 ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`}>
           {messagesWithDividers.length > 0 ? (
             messagesWithDividers.map(item => {
-              if (item.type === 'divider') {
-                return <div key={item.id} className="flex justify-center my-4"><span className={`px-3 py-1 text-xs rounded-full ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-white shadow-md'}`}>{formatDateDivider(item.date)}</span></div>;
-              }
+              if (item.type === 'divider') return <div key={item.id} className="flex justify-center my-4"><span className={`px-3 py-1 text-xs rounded-full ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-white shadow-md'}`}>{formatDateDivider(item.date)}</span></div>;
               return <ChatMessage key={item.id} msg={item} currentUser={currentUser} isDark={isDark} />;
             })
           ) : <div className={`text-center mt-8 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Start the conversation!</div>}
@@ -2051,17 +1961,18 @@ function App() {
         {(isMember || isAdmin) && (
           <div className={`p-4 shadow-2xl ${isDark ? 'bg-gray-800 border-t border-gray-700' : 'bg-white border-t'}`}>
             <div className="flex gap-2 items-end">
-              <textarea
-                ref={messageInputRef}
-                rows="1"
+              <TextareaAutosize
+                minRows={1}
+                maxRows={5}
                 placeholder={isAdmin && !isMember ? "Admin view only" : "Type a message..."}
                 value={newMessage}
                 onChange={handleMessageChange}
                 onKeyDown={handleKeyPress}
-                className={`flex-1 p-3 border rounded-xl resize-none max-h-40 ${ isDark ? 'bg-gray-700 text-white' : 'bg-gray-100' }`}
+                className={`flex-1 p-3 border rounded-xl resize-none ${isDark ? 'bg-gray-700 text-white border-gray-600 placeholder-gray-400' : 'bg-gray-100 text-gray-900 border-gray-300 placeholder-gray-500'}`}
                 autoFocus
                 disabled={isAdmin && !isMember}
                 dir="ltr"
+                style={{ direction: 'ltr', textAlign: 'left' }}
               />
               <button onClick={sendMessage} disabled={!newMessage.trim() || (isAdmin && !isMember)} className="px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50"><Send className="w-5 h-5" /></button>
             </div>
@@ -2074,11 +1985,21 @@ function App() {
               <div className="flex items-center justify-between mb-4"><div className="flex items-center gap-2"><span className="text-2xl">🚨</span><h3 className="text-xl font-bold">Send Alert</h3></div><button onClick={() => setShowAlertModal(false)} className="text-gray-500 hover:text-red-500"><X /></button></div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Choose a preset or type a custom message. This sends a persistent notification.</p>
               <div className="space-y-2 mb-4">
-                {ALERT_PRESETS.map(phrase => (<button key={phrase} type="button" onClick={() => setAlertMessage(phrase)} className={`w-full text-left px-4 py-3 border rounded-lg text-sm ${ alertMessage === phrase ? 'bg-red-600 text-white' : isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200' }`}>{phrase}</button>))}
+                {ALERT_PRESETS.map(phrase => (<button key={phrase} type="button" onClick={() => setAlertMessage(phrase)} className={`w-full text-left px-4 py-3 border rounded-lg text-sm ${alertMessage === phrase ? 'bg-red-600 text-white' : isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'}`}>{phrase}</button>))}
               </div>
               <div className="mb-4">
                 <label className="block text-xs font-semibold text-gray-500 mb-1">Or type a custom alert</label>
-                <textarea ref={alertInputRef} placeholder="Your alert message..." value={alertMessage} onChange={(e) => setAlertMessage(e.target.value)} className={`w-full p-3 border rounded-lg resize-none ${ isDark ? 'bg-gray-700' : 'bg-white' }`} rows={3} maxLength={200}/>
+                <textarea 
+                  ref={alertInputRef} 
+                  placeholder="Your alert message..." 
+                  value={alertMessage} 
+                  onChange={(e) => setAlertMessage(e.target.value)} 
+                  className={`w-full p-3 border rounded-lg resize-none ${isDark ? 'bg-gray-700 text-white border-gray-600 placeholder-gray-400' : 'bg-white text-gray-900 border-gray-300 placeholder-gray-500'}`} 
+                  rows={3} 
+                  maxLength={200}
+                  dir="ltr"
+                  style={{ direction: 'ltr', textAlign: 'left' }}
+                />
                 {alertMessage && <div className="text-xs text-gray-500 mt-1">{alertMessage.length}/200</div>}
               </div>
               <div className="flex gap-3">
@@ -2092,67 +2013,19 @@ function App() {
     );
   };
   
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
   if (showLoginForm) return <LoginPage onLogin={handleLogin} onRegister={handleRegister} />;
   if (showAdminDashboard) return <AdminDashboard />;
   if (showGossips) return <GossipsPage currentUser={currentUser} socketRef={socketRef} onBack={() => setShowGossips(false)} />;
 
   if (isMobile) {
     if (selectedThread) return <ChatView />;
-    return (
-      <MobileRouter
-        currentUser={currentUser}
-        threads={getFilteredAndSortedThreads()}
-        categories={categories}
-        sortOptions={sortOptions}
-        filterCategory={filterCategory}
-        onCategoryChange={setFilterCategory}
-        sortBy={sortBy}
-        onSortChange={setSortBy}
-        getTimeRemaining={getTimeRemaining}
-        onThreadClick={(thread) => setSelectedThread(thread)}
-        onActionClick={async (thread) => {
-          const { creatorId, members, pendingRequests } = thread;
-          if (creatorId === currentUser.id && pendingRequests.length > 0) {
-            setSelectedThread(thread);
-          } else if (members.includes(currentUser.id)) {
-            setSelectedThread(thread);
-          } else if (!pendingRequests.includes(currentUser.id)) {
-            try {
-              await threadsAPI.requestJoin(thread.id, currentUser.id);
-              loadThreads();
-            } catch (error) { alert('Error sending join request'); }
-          }
-        }}
-        onCreateThread={async (formData) => {
-          const allTags = [formData.category, ...formData.tags.split(',').map(t=>t.trim()).filter(Boolean)];
-          const threadData = { ...formData, tags: allTags, creator: currentUser.username, creatorId: currentUser.id, expiresAt: new Date(Date.now() + parseInt(formData.duration) * 3600000).toISOString() };
-          try {
-            await threadsAPI.create(threadData);
-            loadThreads();
-          } catch (error) { alert('Error creating thread'); }
-        }}
-        onLogout={() => {
-          setCurrentUser(null);
-          setShowLoginForm(true);
-          localStorage.removeItem('currentUser');
-        }}
-        socketRef={socketRef}
-        onShowGossips={() => setShowGossips(true)}
-      />
-    );
+    return <MobileRouter currentUser={currentUser} threads={getFilteredAndSortedThreads()} categories={categories} sortOptions={sortOptions} filterCategory={filterCategory} onCategoryChange={setFilterCategory} sortBy={sortBy} onSortChange={setSortBy} getTimeRemaining={getTimeRemaining} onThreadClick={setSelectedThread} onActionClick={async(thread) => { const { creatorId, members, pendingRequests } = thread; if (creatorId === currentUser.id && pendingRequests.length > 0) { setSelectedThread(thread); } else if (members.includes(currentUser.id)) { setSelectedThread(thread); } else if (!pendingRequests.includes(currentUser.id)) { try { await threadsAPI.requestJoin(thread.id, currentUser.id); loadThreads(); } catch (error) { alert('Error sending join request'); }}}} onCreateThread={async(formData)=>{ const allTags = [formData.category, ...formData.tags.split(',').map(t=>t.trim()).filter(Boolean)]; const threadData = { ...formData, tags: allTags, creator: currentUser.username, creatorId: currentUser.id, expiresAt: new Date(Date.now() + parseInt(formData.duration) * 3600000).toISOString() }; try { await threadsAPI.create(threadData); loadThreads(); } catch (error) { alert('Error creating thread'); }}} onLogout={()=>{ setCurrentUser(null); setShowLoginForm(true); localStorage.removeItem('currentUser');}} socketRef={socketRef} onShowGossips={()=>setShowGossips(true)} />;
   }
 
   return (
     <div className={`min-h-screen ${isDark ? 'dark bg-gray-900' : 'bg-gradient-to-br from-blue-50 to-pink-50'}`}>
-      <header className={`shadow-lg border-b ${ isDark ? 'bg-gray-800 border-gray-700' : 'bg-white/80 backdrop-blur-lg' }`}>
+      <header className={`shadow-lg border-b ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white/80 backdrop-blur-lg'}`}>
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -2161,7 +2034,7 @@ function App() {
             </div>
             <div className="flex items-center gap-3">
               <span className={`text-sm ${isDark ? 'text-gray-300' : ''}`}>Hi, <span className="font-semibold">{currentUser.username}</span>!</span>
-              <button onClick={toggleTheme} className={`p-2 rounded-lg ${ isDark ? 'bg-gray-700 text-yellow-400' : 'bg-gray-100' }`} title="Toggle Theme">{isDark ? <Sun /> : <Moon />}</button>
+              <button onClick={toggleTheme} className={`p-2 rounded-lg ${isDark ? 'bg-gray-700 text-yellow-400' : 'bg-gray-100'}`} title="Toggle Theme">{isDark ? <Sun /> : <Moon />}</button>
               <button onClick={() => setShowGossips(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium shadow-lg bg-gradient-to-r from-purple-600 to-pink-600 text-white"><MessageSquare />Gossips</button>
               {!notificationsEnabled && Notification.permission !== 'denied' && (
                 <button onClick={async () => { const p = await Notification.requestPermission(); if(p === 'granted') setNotificationsEnabled(true); }} className="px-3 py-1 bg-green-100 text-green-700 text-xs rounded-lg animate-pulse">🔔 Enable Alerts</button>
@@ -2262,4 +2135,4 @@ function App() {
   );
 }
 
-export default App;
+export default App
