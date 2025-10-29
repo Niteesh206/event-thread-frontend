@@ -1328,7 +1328,7 @@
 //2 with improved ui
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Clock, Users, MapPin, MessageCircle, Plus, X, Check, Hash, Calendar, Send, LogOut, User, Shield, Trash2, Eye, MessageSquare, Moon, Sun, Bell, Sparkles, ArrowUpDown, TrendingUp, TrendingDown, Zap, AlertTriangle } from 'lucide-react';
-import TextareaAutosize from 'react-  -autosize';
+import TextareaAutosize from 'react-textarea-autosize';
 import { authAPI, threadsAPI, adminAPI } from './services/api';
 import LoginPage from './components/LoginPage';
 import GossipsPage from './components/GossipsPage';
@@ -1816,20 +1816,44 @@ function App() {
     
     const chatContainerRef = useRef(null);
     const chatEndRef = useRef(null);
+    const shouldAutoScrollRef = useRef(true);
     const lastMessageId = selectedThread.chat?.[selectedThread.chat.length - 1]?.id;
 
     const scrollToBottom = (behavior = 'smooth') => {
-        chatEndRef.current?.scrollIntoView({ behavior });
+        if (chatEndRef.current) {
+            chatEndRef.current.scrollIntoView({ behavior, block: 'nearest' });
+        }
     };
 
+    // Optimized scroll behavior - only when needed
     useEffect(() => {
-        if (!chatContainerRef.current) return;
-        const container = chatContainerRef.current;
-        const isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 150;
-        if (lastMessageId && isScrolledToBottom) {
-            requestAnimationFrame(() => scrollToBottom('smooth'));
-        }
+        if (!lastMessageId || !shouldAutoScrollRef.current) return;
+        
+        const timeoutId = setTimeout(() => {
+            requestAnimationFrame(() => {
+                if (chatEndRef.current && shouldAutoScrollRef.current) {
+                    scrollToBottom('smooth');
+                }
+            });
+        }, 50); // Small delay to batch updates
+
+        return () => clearTimeout(timeoutId);
     }, [lastMessageId]);
+
+    // Track if user is scrolled to bottom
+    useEffect(() => {
+        const container = chatContainerRef.current;
+        if (!container) return;
+
+        const handleScroll = () => {
+            const { scrollTop, scrollHeight, clientHeight } = container;
+            const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
+            shouldAutoScrollRef.current = isNearBottom;
+        };
+
+        container.addEventListener('scroll', handleScroll, { passive: true });
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, []);
 
     useEffect(() => {
       if (socketRef.current && selectedThread) {
