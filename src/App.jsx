@@ -1806,6 +1806,7 @@ function App() {
   };
 
   // Chat View Component
+    // Chat View Component
   const ChatView = () => {
     if (!selectedThread) return null;
 
@@ -1815,8 +1816,10 @@ function App() {
     const isAdmin = currentUser.isAdmin;
     
     const chatEndRef = useRef(null);
+    const chatContainerRef = useRef(null); // Added missing ref
     const isUserScrollingRef = useRef(false);
     const scrollTimeoutRef = useRef(null);
+    const shouldAutoScrollRef = useRef(true); // Added missing ref
 
     // Simple scroll to bottom without reflow
     const scrollToBottom = () => {
