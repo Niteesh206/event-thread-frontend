@@ -2437,8 +2437,9 @@ function App() {
         if (!thread.tags || thread.tags.length === 0) return false;
         
         return thread.tags.some(tag => {
-          const tagLower = tag.toLowerCase();
-          const categoryLower = filterCategory.toLowerCase();
+  const tagLower = (tag || '').toString().toLowerCase();
+  const categoryLower = (filterCategory || '').toString().toLowerCase();
+
           
           if (tagLower === categoryLower) return true;
           if (tagLower.includes(categoryLower)) return true;
