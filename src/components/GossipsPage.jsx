@@ -634,6 +634,12 @@ const GossipsPage = ({ currentUser, socketRef, onBack }) => {
 };
 
 // Reddit-style Comment Component
+import React, { useState } from 'react';
+
+// You'll need an icon library like 'lucide-react' or similar for these.
+// If you don't have one, you can replace them with simple text like [+] and [-].
+import { ChevronDown, ChevronUp } from 'lucide-react'; 
+
 const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdded }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [showReplyBox, setShowReplyBox] = useState(false);
@@ -644,11 +650,14 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
     if (!replyText.trim()) return;
     setLoading(true);
     
+    // This is where you would call your API to save the reply
     await onReply(comment.id, comment.author, replyText);
+
+    // Reset the form after submission
     setReplyText('');
     setShowReplyBox(false);
     setLoading(false);
-    onCommentAdded();
+    onCommentAdded(); // This function should trigger a re-fetch of comments
   };
 
   const indentColor = [
@@ -662,26 +671,32 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
   ][depth % 7];
 
   return (
-    <div className={`${depth > 0 ? 'ml-4' : ''}`}>
-      <div className={`flex gap-2 ${depth > 0 ? `border-l-2 ${indentColor} pl-2` : ''}`}>
-        {/* Collapse button */}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="flex-shrink-0 w-6 h-6 mt-1 hover:bg-gray-200 rounded flex items-center justify-center text-gray-500"
-        >
-          {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-        </button>
+    // The root element no longer has a recursive margin. 
+    // It only has a top margin to separate it from sibling comments.
+    <div className="mt-4">
+      <div className="flex gap-2">
+        {/* The vertical thread line and collapse button area */}
+        <div className="flex flex-col items-center">
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="w-6 h-6 mt-1 hover:bg-gray-200 rounded flex items-center justify-center text-gray-500"
+          >
+            {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+          </button>
+          {/* This div creates the continuous vertical line below the button */}
+          {!collapsed && <div className={`w-px h-full ${depth > 0 ? indentColor.replace('border-', 'bg-') : 'bg-gray-300'}`}></div>}
+        </div>
 
         <div className="flex-1 min-w-0">
           {/* Comment header */}
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-bold text-gray-900 hover:underline cursor-pointer">
+            <span className="text-xs font-bold text-gray-900 cursor-pointer hover:underline">
               {comment.author}
             </span>
             {comment.replyTo && (
               <>
                 <span className="text-xs text-gray-400">→</span>
-                <span className="text-xs text-gray-600 hover:underline cursor-pointer">
+                <span className="text-xs text-gray-600 cursor-pointer hover:underline">
                   @{comment.replyTo}
                 </span>
               </>
@@ -691,10 +706,10 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
             </span>
           </div>
 
-          {/* Comment content */}
+          {/* Comment content and replies are hidden when collapsed */}
           {!collapsed && (
             <>
-              <p className="text-sm text-gray-800 mb-2 break-words">{comment.content}</p>
+              <p className="mb-2 text-sm text-gray-800 break-words">{comment.content}</p>
 
               {/* Action buttons */}
               <div className="flex items-center gap-3 mb-2">
@@ -704,22 +719,18 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
                 >
                   Reply
                 </button>
-                <button className="text-xs font-bold text-gray-500 hover:text-gray-700">
-                  Share
-                </button>
-                <button className="text-xs font-bold text-gray-500 hover:text-gray-700">
-                  Report
-                </button>
+                <button className="text-xs font-bold text-gray-500 hover:text-gray-700">Share</button>
+                <button className="text-xs font-bold text-gray-500 hover:text-gray-700">Report</button>
               </div>
 
               {/* Reply box */}
               {showReplyBox && (
-                <div className="mb-3 bg-gray-50 rounded p-2">
+                <div className="p-2 mb-3 bg-gray-50 rounded">
                   <textarea
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
                     placeholder={`Reply to ${comment.author}...`}
-                    className="w-full p-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 placeholder-gray-500"
+                    className="w-full p-2 text-sm border border-gray-300 rounded resize-none text-gray-900 placeholder-gray-500 focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                     rows={3}
                     maxLength={300}
                   />
@@ -727,18 +738,15 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
                     <span className="text-xs text-gray-500">{replyText.length}/300</span>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => {
-                          setShowReplyBox(false);
-                          setReplyText('');
-                        }}
-                        className="px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-200 rounded"
+                        onClick={() => { setShowReplyBox(false); setReplyText(''); }}
+                        className="px-3 py-1 text-xs font-medium text-gray-600 rounded hover:bg-gray-200"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={handleSubmitReply}
                         disabled={!replyText.trim() || loading}
-                        className="px-3 py-1 text-xs font-medium bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+                        className="px-3 py-1 text-xs font-medium text-white bg-blue-500 rounded hover:bg-blue-600 disabled:opacity-50"
                       >
                         Comment
                       </button>
@@ -747,10 +755,14 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
                 </div>
               )}
 
-              {/* Nested replies */}
-              {comment.replies && comment.replies.length > 0 && (
-                <div className="mt-2">
-                  {comment.replies.map(reply => (
+              {/* ============================================== */}
+              {/* === THE KEY FIX FOR THE REDDIT STYLE IS HERE === */}
+              {/* ============================================== */}
+              
+              {/* This container holds all the replies. Indentation happens here. */}
+              <div>
+                {comment.replies && comment.replies.length > 0 && (
+                  comment.replies.map(reply => (
                     <RedditComment
                       key={reply.id}
                       comment={reply}
@@ -759,14 +771,15 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
                       depth={depth + 1}
                       onCommentAdded={onCommentAdded}
                     />
-                  ))}
-                </div>
-              )}
+                  ))
+                )}
+              </div>
             </>
           )}
 
+          {/* Show this helpful message when the thread is collapsed */}
           {collapsed && (
-            <p className="text-xs text-gray-500 italic">
+            <p className="text-xs italic text-gray-500">
               [{comment.replies?.length || 0} {comment.replies?.length === 1 ? 'reply' : 'replies'} hidden]
             </p>
           )}
