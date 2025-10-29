@@ -1821,22 +1821,28 @@ function App() {
     const scrollTimeoutRef = useRef(null);
     const shouldAutoScrollRef = useRef(true); // Added missing ref
     // Efficient scroll to bottom — avoids forced reflow
-const scrollToBottom = () => {
+// Smooth, reflow-safe scroll to bottom
+const scrollToBottom = (smooth = false) => {
   const container = chatContainerRef.current;
   if (!container || isUserScrollingRef.current) return;
 
-  // Schedule scroll after layout paint
+  // Avoid layout thrash by batching DOM write
   requestAnimationFrame(() => {
-    container.scrollTop = container.scrollHeight;
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: smooth ? 'smooth' : 'auto',
+    });
   });
 };
 
-// Scroll on mount and when new messages arrive
-useEffect(() => {
+// Scroll on mount or when chat length changes
+useLayoutEffect(() => {
+  // UseLayoutEffect runs before paint → avoids layout jank
   if (selectedThread?.chat?.length) {
-    requestAnimationFrame(scrollToBottom);
+    scrollToBottom();
   }
 }, [selectedThread?.chat?.length]);
+
 
 
     // Detect user scrolling
