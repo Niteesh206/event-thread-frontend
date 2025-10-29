@@ -1328,7 +1328,7 @@
 //2 with improved ui
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Clock, Users, MapPin, MessageCircle, Plus, X, Check, Hash, Calendar, Send, LogOut, User, Shield, Trash2, Eye, MessageSquare, Moon, Sun, Bell, Sparkles, ArrowUpDown, TrendingUp, TrendingDown, Zap, AlertTriangle } from 'lucide-react';
-import TextareaAutosize from 'react-textarea-autosize';
+import TextareaAutosize from 'react-  -autosize';
 import { authAPI, threadsAPI, adminAPI } from './services/api';
 import LoginPage from './components/LoginPage';
 import GossipsPage from './components/GossipsPage';
