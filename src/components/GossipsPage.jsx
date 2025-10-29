@@ -634,7 +634,8 @@ const GossipsPage = ({ currentUser, socketRef, onBack }) => {
 };
 
 // Reddit-style Comment Component
-const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdded }) => {
+// Reddit-style Comment Component
+const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdded, gossipId }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [replyText, setReplyText] = useState('');
@@ -644,11 +645,24 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
     if (!replyText.trim()) return;
     setLoading(true);
     
-    await onReply(comment.id, comment.author, replyText);
-    setReplyText('');
-    setShowReplyBox(false);
-    setLoading(false);
-    onCommentAdded();
+    try {
+      const replyData = {
+        content: replyText.trim(),
+        authorId: currentUser.id,
+        authorUsername: currentUser.username,
+        parentCommentId: comment.id,
+        replyTo: comment.author
+      };
+      
+      await gossipsAPI.addComment(gossipId, replyData);
+      setReplyText('');
+      setShowReplyBox(false);
+      onCommentAdded();
+    } catch (error) {
+      alert('Error adding reply');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const indentColor = [
@@ -662,31 +676,32 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
   ][depth % 7];
 
   return (
-    <div className={`${depth > 0 ? 'ml-4' : ''}`}>
-      <div className={`flex gap-2 ${depth > 0 ? `border-l-2 ${indentColor} pl-2` : ''}`}>
+    <div className={`${depth > 0 ? 'ml-3' : ''}`}>
+      <div className={`flex gap-2 py-1 ${depth > 0 ? `border-l-2 ${indentColor} pl-3` : ''}`}>
         {/* Collapse button */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="flex-shrink-0 w-6 h-6 mt-1 hover:bg-gray-200 rounded flex items-center justify-center text-gray-500"
+          className="flex-shrink-0 w-5 h-5 mt-0.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded flex items-center justify-center text-gray-500 dark:text-gray-400 transition-colors"
+          aria-label={collapsed ? 'Expand comment' : 'Collapse comment'}
         >
-          {collapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+          {collapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
         </button>
 
         <div className="flex-1 min-w-0">
           {/* Comment header */}
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-bold text-gray-900 hover:underline cursor-pointer">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="text-xs font-bold text-gray-900 dark:text-gray-100 hover:underline cursor-pointer">
               {comment.author}
             </span>
             {comment.replyTo && (
               <>
-                <span className="text-xs text-gray-400">→</span>
-                <span className="text-xs text-gray-600 hover:underline cursor-pointer">
+                <span className="text-xs text-gray-400 dark:text-gray-500">→</span>
+                <span className="text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">
                   @{comment.replyTo}
                 </span>
               </>
             )}
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-400 dark:text-gray-500">
               {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
@@ -694,53 +709,56 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
           {/* Comment content */}
           {!collapsed && (
             <>
-              <p className="text-sm text-gray-800 mb-2 break-words">{comment.content}</p>
+              <p className="text-sm text-gray-800 dark:text-gray-200 mb-1.5 break-words whitespace-pre-wrap">
+                {comment.content}
+              </p>
 
               {/* Action buttons */}
-              <div className="flex items-center gap-3 mb-2">
+              <div className="flex items-center gap-3 mb-1.5">
                 <button
                   onClick={() => setShowReplyBox(!showReplyBox)}
-                  className="text-xs font-bold text-gray-500 hover:text-gray-700"
+                  className="text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
                 >
                   Reply
                 </button>
-                <button className="text-xs font-bold text-gray-500 hover:text-gray-700">
+                <button className="text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
                   Share
                 </button>
-                <button className="text-xs font-bold text-gray-500 hover:text-gray-700">
+                <button className="text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors">
                   Report
                 </button>
               </div>
 
               {/* Reply box */}
               {showReplyBox && (
-                <div className="mb-3 bg-gray-50 rounded p-2">
+                <div className="mb-2 bg-gray-50 dark:bg-gray-800 rounded-lg p-2.5 border border-gray-200 dark:border-gray-700">
                   <textarea
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
                     placeholder={`Reply to ${comment.author}...`}
-                    className="w-full p-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 placeholder-gray-500"
+                    className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 resize-none text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-gray-700"
                     rows={3}
                     maxLength={300}
+                    autoFocus
                   />
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs text-gray-500">{replyText.length}/300</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{replyText.length}/300</span>
                     <div className="flex gap-2">
                       <button
                         onClick={() => {
                           setShowReplyBox(false);
                           setReplyText('');
                         }}
-                        className="px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-200 rounded"
+                        className="px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md transition-colors"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={handleSubmitReply}
                         disabled={!replyText.trim() || loading}
-                        className="px-3 py-1 text-xs font-medium bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+                        className="px-3 py-1 text-xs font-medium bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
-                        Comment
+                        {loading ? 'Posting...' : 'Comment'}
                       </button>
                     </div>
                   </div>
@@ -749,7 +767,7 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
 
               {/* Nested replies */}
               {comment.replies && comment.replies.length > 0 && (
-                <div className="mt-2">
+                <div className="mt-1">
                   {comment.replies.map(reply => (
                     <RedditComment
                       key={reply.id}
@@ -758,6 +776,7 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
                       onReply={onReply}
                       depth={depth + 1}
                       onCommentAdded={onCommentAdded}
+                      gossipId={gossipId}
                     />
                   ))}
                 </div>
@@ -766,7 +785,7 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
           )}
 
           {collapsed && (
-            <p className="text-xs text-gray-500 italic">
+            <p className="text-xs text-gray-500 dark:text-gray-400 italic">
               [{comment.replies?.length || 0} {comment.replies?.length === 1 ? 'reply' : 'replies'} hidden]
             </p>
           )}
@@ -775,7 +794,6 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
     </div>
   );
 };
-
 // Gossip Card Component with Enhanced UI
 const GossipCard = ({ gossip, currentUser, onVote, onDelete, expanded, onToggleExpand, onCommentAdded }) => {
   const [showCommentBox, setShowCommentBox] = useState(false);
