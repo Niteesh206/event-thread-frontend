@@ -1814,46 +1814,37 @@ function App() {
     const isMember = selectedThread.members.includes(currentUser.id);
     const isAdmin = currentUser.isAdmin;
     
-    const chatContainerRef = useRef(null);
     const chatEndRef = useRef(null);
-    const shouldAutoScrollRef = useRef(true);
-    const lastMessageId = selectedThread.chat?.[selectedThread.chat.length - 1]?.id;
+    const isUserScrollingRef = useRef(false);
+    const scrollTimeoutRef = useRef(null);
 
-    const scrollToBottom = (behavior = 'smooth') => {
-        if (chatEndRef.current) {
-            chatEndRef.current.scrollIntoView({ behavior, block: 'nearest' });
+    // Simple scroll to bottom without reflow
+    const scrollToBottom = () => {
+        if (chatEndRef.current && !isUserScrollingRef.current) {
+            chatEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
         }
     };
 
-    // Optimized scroll behavior - only when needed
+    // Scroll on mount and when new messages arrive
     useEffect(() => {
-        if (!lastMessageId || !shouldAutoScrollRef.current) return;
+        const timer = setTimeout(() => {
+            scrollToBottom();
+        }, 100);
+        return () => clearTimeout(timer);
+    }, [selectedThread?.chat?.length]);
+
+    // Detect user scrolling
+    const handleScroll = () => {
+        isUserScrollingRef.current = true;
         
-        const timeoutId = setTimeout(() => {
-            requestAnimationFrame(() => {
-                if (chatEndRef.current && shouldAutoScrollRef.current) {
-                    scrollToBottom('smooth');
-                }
-            });
-        }, 50); // Small delay to batch updates
-
-        return () => clearTimeout(timeoutId);
-    }, [lastMessageId]);
-
-    // Track if user is scrolled to bottom
-    useEffect(() => {
-        const container = chatContainerRef.current;
-        if (!container) return;
-
-        const handleScroll = () => {
-            const { scrollTop, scrollHeight, clientHeight } = container;
-            const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
-            shouldAutoScrollRef.current = isNearBottom;
-        };
-
-        container.addEventListener('scroll', handleScroll, { passive: true });
-        return () => container.removeEventListener('scroll', handleScroll);
-    }, []);
+        if (scrollTimeoutRef.current) {
+            clearTimeout(scrollTimeoutRef.current);
+        }
+        
+        scrollTimeoutRef.current = setTimeout(() => {
+            isUserScrollingRef.current = false;
+        }, 1000);
+    };
 
     useEffect(() => {
       if (socketRef.current && selectedThread) {
@@ -1893,7 +1884,8 @@ function App() {
       
       try {
         await threadsAPI.sendMessage(selectedThread.id, { user: currentUser.username, userId: currentUser.id, message: messageText });
-        requestAnimationFrame(() => scrollToBottom('smooth'));
+        // Auto-scroll will happen via useEffect when new message arrives
+        shouldAutoScrollRef.current = true;
       } catch (error) {
         setNewMessage(messageText);
         alert('Error sending message');
