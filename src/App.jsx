@@ -1383,7 +1383,7 @@ const getTimeRemaining = (expiresAt) => {
 };
 
 // =================================================================================
-// Memoized ChatMessage Component to prevent re-renders and fix flickering
+// Memoized ChatMessage Component to prevent re-renders
 // =================================================================================
 const ChatMessage = React.memo(({ msg, currentUser, isDark }) => {
     const sanitizedMessage = cleanBidi(msg.message);
@@ -1436,7 +1436,7 @@ const ChatMessage = React.memo(({ msg, currentUser, isDark }) => {
         <div className="max-w-xs lg:max-w-md">
           <div className={`px-4 py-2.5 rounded-2xl ${isCurrentUser ? 'rounded-br-lg' : 'rounded-tl-lg'} ${
             isCurrentUser
-              ? `${myBubbleColor} ${msg.isPending ? 'opacity-70' : ''}`
+              ? myBubbleColor // REMOVED: Fading effect is gone from here
               : bubbleColor
           }`}>
             {!isCurrentUser && (
@@ -1452,12 +1452,9 @@ const ChatMessage = React.memo(({ msg, currentUser, isDark }) => {
               {sanitizedMessage}
             </div>
             <div
-              className={`text-xs opacity-80 mt-1.5 flex items-center ${
-                isCurrentUser ? 'justify-end' : 'justify-end' // Both align to end for consistency
-              } gap-1`}
+              className={`text-xs opacity-80 mt-1.5 flex items-center justify-end gap-1`}
             >
               {formatTime(msg.timestamp)}
-              {/* REMOVED: The pending emoji is no longer here */}
             </div>
           </div>
         </div>
