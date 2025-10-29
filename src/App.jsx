@@ -1820,21 +1820,24 @@ function App() {
     const isUserScrollingRef = useRef(false);
     const scrollTimeoutRef = useRef(null);
     const shouldAutoScrollRef = useRef(true); // Added missing ref
+    // Efficient scroll to bottom — avoids forced reflow
+const scrollToBottom = () => {
+  const container = chatContainerRef.current;
+  if (!container || isUserScrollingRef.current) return;
 
-    // Simple scroll to bottom without reflow
-    const scrollToBottom = () => {
-        if (chatEndRef.current && !isUserScrollingRef.current) {
-            chatEndRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
-        }
-    };
+  // Schedule scroll after layout paint
+  requestAnimationFrame(() => {
+    container.scrollTop = container.scrollHeight;
+  });
+};
 
-    // Scroll on mount and when new messages arrive
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            scrollToBottom();
-        }, 100);
-        return () => clearTimeout(timer);
-    }, [selectedThread?.chat?.length]);
+// Scroll on mount and when new messages arrive
+useEffect(() => {
+  if (selectedThread?.chat?.length) {
+    requestAnimationFrame(scrollToBottom);
+  }
+}, [selectedThread?.chat?.length]);
+
 
     // Detect user scrolling
     const handleScroll = () => {
