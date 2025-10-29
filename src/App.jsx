@@ -1326,8 +1326,848 @@
 
 
 //2 with improved ui
+// import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+// import { Clock, Users, MapPin, MessageCircle, Plus, X, Check, Hash, Calendar, Send, LogOut, User, Shield, Trash2, Eye, MessageSquare, Moon, Sun, Bell, Sparkles, ArrowUpDown, TrendingUp, TrendingDown, Zap, AlertTriangle } from 'lucide-react';
+// import TextareaAutosize from 'react-textarea-autosize';
+// import { authAPI, threadsAPI, adminAPI } from './services/api';
+// import LoginPage from './components/LoginPage';
+// import GossipsPage from './components/GossipsPage';
+// import MobileRouter from './components/mobile/MobileRouter';
+// import { io } from 'socket.io-client';
+// import { useTheme } from './context/ThemeContext';
+
+// // remove bidi / directionality chars and normalize
+// const cleanBidi = (s = '') =>
+//   String(s)
+//     .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, '')
+//     .normalize('NFC')
+//     .trim();
+
+// const ALERT_PRESETS = [
+//   'Urgent update: Please assemble in 10 minutes.',
+//   'Schedule change: Event starting immediately.',
+//   'Reminder: Check the event chat right away.',
+//   'Emergency: Contact the organizer ASAP.',
+//   'Weather alert: Move indoors now.'
+// ];
+
+// const SOCKET_URL = import.meta.env.VITE_API_URL || '';
+
+// // Helper functions
+// const formatTime = (dateString) => {
+//   return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+// };
+
+// const formatDateDivider = (dateString) => {
+//     const date = new Date(dateString);
+//     const today = new Date();
+//     const yesterday = new Date();
+//     yesterday.setDate(yesterday.getDate() - 1);
+
+//     if (date.toDateString() === today.toDateString()) {
+//         return 'Today';
+//     }
+//     if (date.toDateString() === yesterday.toDateString()) {
+//         return 'Yesterday';
+//     }
+//     return date.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
+// };
+
+// const getTimeRemaining = (expiresAt) => {
+//   const diff = new Date(expiresAt) - new Date();
+//   const hours = Math.floor(diff / (1000 * 60 * 60));
+//   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+//   if (hours > 0) return `${hours}h ${minutes}m`;
+//   if (minutes > 0) return `${minutes}m`;
+//   return 'Expiring soon';
+// };
+
+// const ChatMessage = React.memo(({ msg, currentUser, isDark }) => {
+//     const sanitizedMessage = cleanBidi(msg.message);
+//     const isAlert = msg.user === 'Alert';
+//     const isCurrentUser = msg.user === currentUser.username;
+//     const isSystemMessage = msg.user === 'System';
+    
+//     const bubbleColor = isDark ? 'bg-gray-700 text-white' : 'bg-white text-gray-900 shadow-md';
+//     const myBubbleColor = isDark ? 'bg-blue-700 text-white' : 'bg-blue-500 text-white shadow-lg';
+//     const alertBubbleColor = 'bg-gradient-to-r from-red-100 to-orange-100 border-2 border-orange-400 shadow-xl';
+
+//     if (isAlert) {
+//       return (
+//         <div className="flex justify-center my-2">
+//           <div className={`w-full max-w-lg px-5 py-3 rounded-xl ${alertBubbleColor}`}>
+//             <div className="flex items-center justify-center gap-2 mb-2 text-red-700 dark:text-red-500 font-bold">
+//               <span className="text-2xl animate-pulse" role="img" aria-label="alert">🚨</span>
+//               <span className="tracking-wide uppercase text-sm">Creator Alert</span>
+//               <span className="text-2xl animate-pulse" role="img" aria-label="alert">🚨</span>
+//             </div>
+//             <div
+//               className="text-base font-semibold text-center text-gray-900 dark:text-gray-800"
+//               dir="ltr"
+//               style={{ direction: 'ltr', unicodeBidi: 'plaintext' }}
+//             >
+//               {sanitizedMessage}
+//             </div>
+//             <div className="text-xs text-orange-700 opacity-80 mt-2 flex items-center justify-center gap-1">
+//               {formatTime(msg.timestamp)}
+//             </div>
+//           </div>
+//         </div>
+//       );
+//     }
+
+//     if (isSystemMessage) {
+//        return (
+//           <div className="flex justify-center my-2">
+//               <div className={`px-4 py-2 rounded-lg max-w-xs ${isDark ? 'bg-gray-700/50 text-gray-400' : 'bg-gray-200 text-gray-600'} text-center text-sm`}>
+//                   {sanitizedMessage}
+//               </div>
+//           </div>
+//        );
+//     }
+
+//     return (
+//       <div
+//         className={`flex items-end ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
+//       >
+//         <div className="max-w-xs lg:max-w-md">
+//           <div className={`px-4 py-2.5 rounded-2xl ${isCurrentUser ? 'rounded-br-lg' : 'rounded-tl-lg'} ${
+//             isCurrentUser
+//               ? myBubbleColor
+//               : bubbleColor
+//           }`}>
+//             {!isCurrentUser && (
+//                 <div className="text-xs font-bold mb-1 text-blue-400 dark:text-teal-400">
+//                     {msg.user}
+//                 </div>
+//             )}
+//             <div
+//               className="text-sm"
+//               dir="ltr"
+//               style={{ direction: 'ltr', unicodeBidi: 'plaintext', whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}
+//             >
+//               {sanitizedMessage}
+//             </div>
+//             <div
+//               className={`text-xs opacity-80 mt-1.5 flex items-center justify-end gap-1`}
+//             >
+//               {formatTime(msg.timestamp)}
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+//     );
+// });
+
+// function App() {
+//   const { isDark, toggleTheme } = useTheme();
+//   const [currentUser, setCurrentUser] = useState(null);
+//   const [threads, setThreads] = useState([]);
+//   const [selectedThread, setSelectedThread] = useState(null);
+//   const [showCreateForm, setShowCreateForm] = useState(false);
+//   const [showLoginForm, setShowLoginForm] = useState(true);
+//   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
+//   const [showGossips, setShowGossips] = useState(false);
+//   const [loading, setLoading] = useState(true);
+//   const [adminData, setAdminData] = useState(null);
+//   const [showEditForm, setShowEditForm] = useState(false);
+//   const [editingThread, setEditingThread] = useState(null);
+//   const [filterCategory, setFilterCategory] = useState('all');
+//   const [sortBy, setSortBy] = useState('newest');
+//   const [showAlertModal, setShowAlertModal] = useState(false);
+//   const [alertMessage, setAlertMessage] = useState('');
+//   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+//   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+//   const socketRef = useRef(null);
+  
+//   const alertInputRef = useRef(null);
+
+//   // Check for existing session on mount
+//   useEffect(() => {
+//     const storedUser = localStorage.getItem('currentUser');
+//     if (storedUser) {
+//       try {
+//         const user = JSON.parse(storedUser);
+//         setCurrentUser(user);
+//         setShowLoginForm(false);
+//       } catch (error) {
+//         console.error('Error parsing stored user:', error);
+//         localStorage.removeItem('currentUser');
+//       }
+//     }
+//     setLoading(false);
+//   }, []);
+
+//   // Responsive breakpoint listener
+//   useEffect(() => {
+//     const handleResize = () => setIsMobile(window.innerWidth < 768);
+//     window.addEventListener('resize', handleResize);
+//     return () => window.removeEventListener('resize', handleResize);
+//   }, []);
+
+//   // Request notification permission on login
+//   useEffect(() => {
+//     if (currentUser && !showLoginForm && 'Notification' in window) {
+//       if (Notification.permission === 'granted') {
+//         setNotificationsEnabled(true);
+//       } else if (Notification.permission !== 'denied') {
+//         Notification.requestPermission().then(permission => {
+//           if (permission === 'granted') {
+//             setNotificationsEnabled(true);
+//             new Notification('Prastha', {
+//               body: 'Notifications enabled! You\'ll be alerted for important messages.',
+//               icon: '/vite.svg'
+//             });
+//           }
+//         });
+//       }
+//     }
+//   }, [currentUser, showLoginForm]);
+
+//   const categories = [
+//     { id: 'all', label: '🌟 All', icon: Calendar },
+//     { id: 'sports', label: '⚽ Sports', icon: Users },
+//     { id: 'food', label: '🍕 Food & Drinks', icon: Users },
+//     { id: 'entertainment', label: '🎬 Entertainment', icon: Users },
+//     { id: 'tech', label: '💻 Tech & Coding', icon: Users },
+//     { id: 'study', label: '📚 Study Groups', icon: Users },
+//     { id: 'music', label: '🎵 Music', icon: Users },
+//     { id: 'fitness', label: '💪 Fitness', icon: Users },
+//     { id: 'gaming', label: '🎮 Gaming', icon: Users },
+//     { id: 'other', label: '✨ Other', icon: Users }
+//   ];
+
+//   const sortOptions = [
+//     { id: 'newest', label: 'Newest', icon: TrendingUp },
+//     { id: 'oldest', label: 'Oldest', icon: TrendingDown },
+//     { id: 'mostMembers', label: 'Most Members', icon: Users },
+//     { id: 'expiringSoon', label: 'Expiring Soon', icon: Zap },
+//     { id: 'mostActive', label: 'Most Active', icon: MessageCircle }
+//   ];
+
+//   // Initialize Socket.io
+//   useEffect(() => {
+//     if (currentUser && !showLoginForm) {
+//       socketRef.current = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+
+//       socketRef.current.on('connect', () => console.log('✅ Socket connected'));
+//       socketRef.current.on('refresh-threads', () => loadThreads());
+//       socketRef.current.on('disconnect', () => console.log('❌ Socket disconnected'));
+
+//       socketRef.current.on('new-thread-created', (data) => {
+//         if (notificationsEnabled && data.creatorId !== currentUser.id) {
+//           const notification = new Notification('🎉 New Event Thread!', {
+//             body: `${data.creator} created: "${data.title}"`,
+//             icon: '/vite.svg',
+//             tag: `thread-${data.threadId}`,
+//           });
+//           notification.onclick = () => { window.focus(); loadThreads(); notification.close(); };
+//         }
+//         loadThreads();
+//       });
+
+//       return () => { if (socketRef.current) socketRef.current.disconnect(); };
+//     }
+//   }, [currentUser, showLoginForm, notificationsEnabled]);
+
+//   // Load threads periodically
+//   useEffect(() => {
+//     if (currentUser && !showLoginForm) {
+//       loadThreads();
+//       const interval = setInterval(() => { if (!showCreateForm && !showEditForm) loadThreads(); }, 60000);
+//       return () => clearInterval(interval);
+//     }
+//   }, [currentUser, showLoginForm, showCreateForm, showEditForm]);
+
+//   // Load admin dashboard
+//   useEffect(() => {
+//     if (currentUser?.isAdmin && showAdminDashboard) loadAdminDashboard();
+//   }, [currentUser, showAdminDashboard]);
+
+//   const loadThreads = async () => {
+//     try {
+//       const response = await threadsAPI.getAll();
+//       if (response.data.success) {
+//         setThreads(response.data.threads);
+//         if (selectedThread) {
+//           const updatedThread = response.data.threads.find(t => t.id === selectedThread.id);
+//           setSelectedThread(updatedThread || null);
+//         }
+//       }
+//     } catch (error) { console.error('Error loading threads:', error); }
+//   };
+
+//   const getFilteredAndSortedThreads = () => {
+//     let filtered = threads;
+//     if (filterCategory !== 'all') {
+//       filtered = threads.filter(thread => thread.tags.some(tag => tag.toLowerCase().includes(filterCategory.toLowerCase())));
+//     }
+//     return [...filtered].sort((a, b) => {
+//       switch (sortBy) {
+//         case 'newest': return new Date(b.createdAt) - new Date(a.createdAt);
+//         case 'oldest': return new Date(a.createdAt) - new Date(b.createdAt);
+//         case 'mostMembers': return b.members.length - a.members.length;
+//         case 'expiringSoon': return new Date(a.expiresAt) - new Date(b.expiresAt);
+//         case 'mostActive': return b.chat.length - a.chat.length;
+//         default: return 0;
+//       }
+//     });
+//   };
+
+//   const loadAdminDashboard = async () => {
+//     try {
+//       const response = await adminAPI.getDashboard(currentUser.id);
+//       if (response.data.success) setAdminData(response.data.data);
+//     } catch (error) { console.error('Error loading admin dashboard:', error); }
+//   };
+
+//   const handleLogin = async (username, password, isAdmin) => {
+//     try {
+//       const response = await authAPI.login(username, password, isAdmin);
+//       if (response.data.success) {
+//         setCurrentUser(response.data.user);
+//         setShowLoginForm(false);
+//         localStorage.setItem('currentUser', JSON.stringify(response.data.user));
+//       } else { throw new Error(response.data.message || 'Login failed.'); }
+//     } catch (error) { throw new Error(error.response?.data?.message || 'Login failed.'); }
+//   };
+
+//   const handleRegister = async (username, password) => {
+//     try {
+//       const response = await authAPI.register(username, password);
+//       if (response.data.success) {
+//         setCurrentUser(response.data.user);
+//         setShowLoginForm(false);
+//         localStorage.setItem('currentUser', JSON.stringify(response.data.user));
+//         if ('Notification' in window && Notification.permission === 'default') {
+//           setTimeout(() => {
+//             Notification.requestPermission().then(p => { if (p === 'granted') setNotificationsEnabled(true); });
+//           }, 1000);
+//         }
+//       } else { throw new Error(response.data.message || 'Registration failed.'); }
+//     } catch (error) { throw new Error(error.response?.data?.message || 'Registration failed.'); }
+//   };
+
+//   const AdminDashboard = () => {
+//     const handleDeleteThread = async (threadId) => {
+//       if (window.confirm('Are you sure?')) {
+//         try {
+//           await threadsAPI.delete(threadId, currentUser.id);
+//           loadAdminDashboard();
+//           loadThreads();
+//         } catch (error) {
+//           alert('Error deleting thread');
+//         }
+//       }
+//     };
+//     const handleViewThread = (thread) => {
+//       setSelectedThread({
+//         ...thread,
+//         id: thread.id || thread._id
+//       });
+//       setShowAdminDashboard(false);
+//     };
+//     return (
+//       <div className="fixed inset-0 bg-white z-50 overflow-y-auto">
+//         <div className="bg-blue-600 text-white p-4 flex justify-between items-center">
+//           <div>
+//             <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+//             <p className="opacity-90">System Overview</p>
+//           </div>
+//           <button onClick={() => setShowAdminDashboard(false)} className="text-white hover:text-blue-200"><X /></button>
+//         </div>
+//         <div className="p-6">
+//           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+//             <div className="bg-white p-6 rounded-lg border"><h3 className="text-lg font-semibold mb-2">Total Threads</h3><p className="text-3xl font-bold text-blue-600">{adminData?.totalThreads ?? 0}</p></div>
+//             <div className="bg-white p-6 rounded-lg border"><h3 className="text-lg font-semibold mb-2">Active Users</h3><p className="text-3xl font-bold text-green-600">{adminData?.activeUsers ?? 0}</p></div>
+//             <div className="bg-white p-6 rounded-lg border"><h3 className="text-lg font-semibold mb-2">Total Users</h3><p className="text-3xl font-bold text-purple-600">{adminData?.totalUsers ?? 0}</p></div>
+//           </div>
+//           <div className="mb-8">
+//             <h2 className="text-xl font-bold mb-4">Active Threads</h2>
+//             {(adminData?.threads?.length === 0) ? <p>No active threads.</p> : (
+//               <div className="space-y-4">
+//                 {adminData?.threads.map(thread => (
+//                   <div key={thread.id || thread._id} className="bg-white p-4 rounded-lg border">
+//                     <div className="flex justify-between items-start">
+//                       <div className="flex-1">
+//                         <h3 className="font-semibold">{thread.title}</h3>
+//                         <p className="text-sm text-gray-600">{thread.description}</p>
+//                         <div className="flex items-center gap-4 text-sm text-gray-500 mt-2">
+//                           <span>👤 {thread.creatorUsername}</span><span>📍 {thread.location}</span><span>⏰ {getTimeRemaining(thread.expiresAt)}</span><span>👥 {thread.members.length}</span><span>💬 {thread.chat.length}</span>
+//                         </div>
+//                       </div>
+//                       <div className="flex gap-2">
+//                         <button onClick={() => handleViewThread(thread)} className="p-2 text-blue-600 hover:bg-blue-50 rounded" title="View"><Eye className="w-4 h-4" /></button>
+//                         <button onClick={() => handleDeleteThread(thread.id || thread._id)} className="p-2 text-red-600 hover:bg-red-50 rounded" title="Delete"><Trash2 className="w-4 h-4" /></button>
+//                       </div>
+//                     </div>
+//                   </div>
+//                 ))}
+//               </div>
+//             )}
+//           </div>
+//           {adminData?.users?.length > 0 && (
+//             <div>
+//               <h2 className="text-xl font-bold mb-4">Users</h2>
+//               <div className="bg-white rounded-lg border overflow-hidden">
+//                 <table className="w-full">
+//                   <thead className="bg-gray-50"><tr><th className="px-4 py-3 text-left text-sm font-medium">Username</th><th className="px-4 py-3 text-left text-sm font-medium">Joined</th><th className="px-4 py-3 text-left text-sm font-medium">Status</th></tr></thead>
+//                   <tbody className="divide-y">
+//                     {adminData.users.map(user => (
+//                       <tr key={user.id || user._id}><td className="px-4 py-3">{user.username}</td><td className="px-4 py-3 text-sm text-gray-600">{new Date(user.createdAt).toLocaleDateString()}</td><td className="px-4 py-3"><span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">Active</span></td></tr>
+//                     ))}
+//                   </tbody>
+//                 </table>
+//               </div>
+//             </div>
+//           )}
+//         </div>
+//       </div>
+//     );
+//   };
+  
+//   const CreateThreadForm = () => {
+//     const [formData, setFormData] = useState({ title: '', description: '', location: '', category: 'other', tags: '', duration: '2' });
+//     const [isSubmitting, setIsSubmitting] = useState(false);
+
+//     const handleSubmit = async () => {
+//       if (!formData.title.trim() || !formData.description.trim() || !formData.location.trim()) return;
+//       setIsSubmitting(true);
+      
+//       const allTags = [formData.category, ...formData.tags.split(',').map(t => t.trim()).filter(Boolean)];
+//       const threadData = { ...formData, tags: allTags, creator: currentUser.username, creatorId: currentUser.id, expiresAt: new Date(Date.now() + parseInt(formData.duration) * 3600000).toISOString() };
+
+//       try {
+//         await threadsAPI.create(threadData);
+//         setShowCreateForm(false);
+//         loadThreads();
+//       } catch (error) {
+//         alert('Error creating thread');
+//       } finally {
+//         setIsSubmitting(false);
+//       }
+//     };
+
+//     return (
+//       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+//         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+//           <div className="flex justify-between items-center mb-4"><h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Create Event Thread</h2><button onClick={() => setShowCreateForm(false)} className={isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}><X/></button></div>
+//           <div className="space-y-4">
+//             <input type="text" placeholder="Event Title" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'}`} dir="ltr" />
+//             <textarea placeholder="Description" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'}`} rows={3} dir="ltr" />
+//             <input type="text" placeholder="Location" value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'}`} dir="ltr" />
+//             <select value={formData.category} onChange={(e) => setFormData({...formData, category: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
+//               {categories.filter(c=>c.id!=='all').map(cat=><option key={cat.id} value={cat.id}>{cat.label}</option>)}
+//             </select>
+//             <input type="text" placeholder="Additional Tags (comma-separated)" value={formData.tags} onChange={(e) => setFormData({...formData, tags: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'}`} dir="ltr" />
+//             <select value={formData.duration} onChange={(e) => setFormData({...formData, duration: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
+//               <option value="1">1 hour</option><option value="2">2 hours</option><option value="4">4 hours</option><option value="8">8 hours</option>
+//             </select>
+//             <div className="flex gap-3"><button onClick={() => setShowCreateForm(false)} className={`flex-1 py-2 rounded-lg ${isDark ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-900'}`}>Cancel</button><button onClick={handleSubmit} disabled={isSubmitting} className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">{isSubmitting ? 'Creating...' : 'Create'}</button></div>
+//           </div>
+//         </div>
+//       </div>
+//     );
+//   };
+
+//   const EditThreadForm = () => {
+//     const [formData, setFormData] = useState({ title: editingThread?.title || '', description: editingThread?.description || '', location: editingThread?.location || '', tags: editingThread?.tags?.join(', ') || '' });
+//     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+//     const handleSubmit = async () => {
+//       if (!formData.title.trim() || !formData.description.trim() || !formData.location.trim()) return;
+//       setIsSubmitting(true);
+//       const updateData = { ...formData, tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean), userId: currentUser.id };
+//       try {
+//         await threadsAPI.update(editingThread.id, updateData);
+//         setShowEditForm(false);
+//         setEditingThread(null);
+//         loadThreads();
+//       } catch (error) {
+//         alert('Error updating thread');
+//       } finally {
+//         setIsSubmitting(false);
+//       }
+//     };
+//     return (
+//       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+//         <div className={`rounded-lg p-6 w-full max-w-md ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+//           <div className="flex justify-between items-center mb-4"><h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Edit Thread</h2><button onClick={() => {setShowEditForm(false); setEditingThread(null);}} className={isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}><X/></button></div>
+//           <div className="space-y-4">
+//             <input type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`} dir="ltr" />
+//             <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`} rows={3} dir="ltr" />
+//             <input type="text" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`} dir="ltr" />
+//             <input type="text" value={formData.tags} onChange={e => setFormData({...formData, tags: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`} dir="ltr" />
+//             <div className="flex gap-3"><button onClick={() => {setShowEditForm(false); setEditingThread(null);}} className={`flex-1 py-2 rounded-lg ${isDark ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-900'}`}>Cancel</button><button onClick={handleSubmit} disabled={isSubmitting} className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">{isSubmitting ? 'Updating...' : 'Update'}</button></div>
+//           </div>
+//         </div>
+//       </div>
+//     );
+//   };
+
+//   // Chat View Component
+//     // Chat View Component
+//   const ChatView = () => {
+//     if (!selectedThread) return null;
+
+//     const [newMessage, setNewMessage] = useState('');
+//     const isCreator = selectedThread.creatorId === currentUser.id;
+//     const isMember = selectedThread.members.includes(currentUser.id);
+//     const isAdmin = currentUser.isAdmin;
+    
+//     const chatEndRef = useRef(null);
+//     const chatContainerRef = useRef(null); // Added missing ref
+//     const isUserScrollingRef = useRef(false);
+//     const scrollTimeoutRef = useRef(null);
+//     const shouldAutoScrollRef = useRef(true); // Added missing ref
+//     // Efficient scroll to bottom — avoids forced reflow
+// // Smooth, reflow-safe scroll to bottom
+// const scrollToBottom = (smooth = false) => {
+//   const container = chatContainerRef.current;
+//   if (!container || isUserScrollingRef.current) return;
+
+//   // Avoid layout thrash by batching DOM write
+//   requestAnimationFrame(() => {
+//     container.scrollTo({
+//       top: container.scrollHeight,
+//       behavior: smooth ? 'smooth' : 'auto',
+//     });
+//   });
+// };
+
+// // Scroll on mount or when chat length changes
+// useLayoutEffect(() => {
+//   // UseLayoutEffect runs before paint → avoids layout jank
+//   if (selectedThread?.chat?.length) {
+//     scrollToBottom();
+//   }
+// }, [selectedThread?.chat?.length]);
+
+
+
+//     // Detect user scrolling
+//     const handleScroll = () => {
+//         isUserScrollingRef.current = true;
+        
+//         if (scrollTimeoutRef.current) {
+//             clearTimeout(scrollTimeoutRef.current);
+//         }
+        
+//         scrollTimeoutRef.current = setTimeout(() => {
+//             isUserScrollingRef.current = false;
+//         }, 1000);
+//     };
+
+//     useEffect(() => {
+//       if (socketRef.current && selectedThread) {
+//         socketRef.current.emit('join-thread', selectedThread.id);
+        
+//         const handleNewMessage = (message) => {
+//           setSelectedThread(prev => {
+//             if (!prev || (message.threadId && prev.id !== message.threadId) || prev.chat.some(msg => msg.id === message.id)) {
+//               return prev;
+//             }
+//             return { ...prev, chat: [...prev.chat, message] };
+//           });
+
+//           if (message.user === 'Alert' && message.userId !== currentUser.id && Notification.permission === 'granted') {
+//             new Notification(`🚨 Alert from ${selectedThread.title}`, {
+//               body: `\u202A${cleanBidi(message.message)}`, icon: '/vite.svg', tag: `alert-${message.id}`, requireInteraction: true,
+//             }).onclick = () => { window.focus(); };
+//           }
+//         };
+
+//         socketRef.current.on('new-message', handleNewMessage);
+//         return () => {
+//           socketRef.current.emit('leave-thread', selectedThread.id);
+//           socketRef.current.off('new-message', handleNewMessage);
+//         };
+//       }
+//     }, [selectedThread?.id, notificationsEnabled]);
+    
+//     const handleMessageChange = (e) => {
+//         setNewMessage(e.target.value);
+//     };
+    
+//     const sendMessage = async () => {
+//       if (!newMessage.trim()) return;
+//       const messageText = newMessage.trim();
+//       setNewMessage('');
+      
+//       try {
+//         await threadsAPI.sendMessage(selectedThread.id, { user: currentUser.username, userId: currentUser.id, message: messageText });
+//         // Auto-scroll will happen via useEffect when new message arrives
+//         shouldAutoScrollRef.current = true;
+//       } catch (error) {
+//         setNewMessage(messageText);
+//         alert('Error sending message');
+//       }
+//     };
+
+//     const handleKeyPress = (e) => {
+//       if (e.key === 'Enter' && !e.shiftKey) {
+//         e.preventDefault();
+//         sendMessage();
+//       }
+//     };
+
+//     const handleRequest = async (userId, approve) => {
+//       try {
+//         await threadsAPI.handleRequest(selectedThread.id, userId, approve, currentUser.id);
+//         loadThreads();
+//       } catch (error) { alert('Error handling request'); }
+//     };
+
+//     const sendAlert = async () => {
+//       const messageText = cleanBidi(alertMessage);
+//       if (!messageText) return alert('Please enter an alert message');
+//       try {
+//         await threadsAPI.sendMessage(selectedThread.id, { user: 'Alert', userId: currentUser.id, message: messageText });
+//         setAlertMessage('');
+//         setShowAlertModal(false);
+//       } catch (error) { alert('Error sending alert.'); }
+//     };
+
+//     const getUsernameById = (userId) => (userId === currentUser?.id) ? currentUser.username : `User_${userId.slice(-4)}`;
+
+//     const messagesWithDividers = useMemo(() => {
+//         if (!selectedThread?.chat) return [];
+//         const items = [];
+//         let lastDate = null;
+//         selectedThread.chat.forEach(msg => {
+//             const msgDate = new Date(msg.timestamp).toDateString();
+//             if (msgDate !== lastDate) {
+//                 items.push({ id: `divider-${msgDate}`, type: 'divider', date: msg.timestamp });
+//                 lastDate = msgDate;
+//             }
+//             items.push({ ...msg, type: 'message' });
+//         });
+//         return items;
+//     }, [selectedThread?.chat]);
+
+
+//     return (
+//       <div className="fixed inset-0 bg-gray-50 dark:bg-gray-900 z-40 flex flex-col">
+//         <div className={`shadow-lg p-4 transition-colors duration-300 ${isDark ? 'bg-gray-800 border-b border-gray-700' : 'bg-white border-b border-gray-200'}`}>
+//           <div className="flex items-center justify-between">
+//             <button onClick={() => setSelectedThread(null)} className="text-gray-600 dark:text-gray-300 hover:text-blue-500 dark:hover:text-blue-400">← Back</button>
+//             <div className="text-center flex-1 mx-4">
+//               <h2 className={`font-bold text-lg truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{selectedThread.title}</h2>
+//               <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}><Users className="w-3 h-3 inline mr-1" />{selectedThread.members.length} members • {getTimeRemaining(selectedThread.expiresAt)} left</p>
+//             </div>
+//             {(isMember || isCreator) ? (<button onClick={() => setShowAlertModal(true)} className="flex items-center gap-1 px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700" title="Send alert"><AlertTriangle className="w-4 h-4" />Alert</button>) : <div className="w-20"></div>}
+//           </div>
+//         </div>
+
+//         {isCreator && selectedThread.pendingRequests.length > 0 && (
+//           <div className="bg-orange-100 dark:bg-orange-900 border-b border-orange-300 p-4">
+//             <h3 className="font-medium text-orange-900 dark:text-orange-200 mb-2">Join Requests ({selectedThread.pendingRequests.length})</h3>
+//             <div className="space-y-2">
+//               {selectedThread.pendingRequests.map(userId => (
+//                 <div key={userId} className={`flex items-center justify-between p-3 rounded-lg border ${isDark ? 'bg-gray-700' : 'bg-white'}`}>
+//                   <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{getUsernameById(userId)}</span>
+//                   <div className="flex gap-2">
+//                     <button onClick={() => handleRequest(userId, false)} className="p-1 text-red-600 hover:bg-red-100 rounded" title="Reject"><X className="w-4 h-4" /></button>
+//                     <button onClick={() => handleRequest(userId, true)} className="p-1 text-green-600 hover:bg-green-100 rounded" title="Approve"><Check className="w-4 h-4" /></button>
+//                   </div>
+//                 </div>
+//               ))}
+//             </div>
+//           </div>
+//         )}
+
+//         <div ref={chatContainerRef} className={`flex-1 overflow-y-auto p-4 space-y-3 ${isDark ? 'bg-gray-800' : 'bg-gray-200'}`}>
+//           {messagesWithDividers.length > 0 ? (
+//             messagesWithDividers.map(item => {
+//               if (item.type === 'divider') return <div key={item.id} className="flex justify-center my-4"><span className={`px-3 py-1 text-xs rounded-full ${isDark ? 'bg-gray-700 text-gray-300' : 'bg-white shadow-md'}`}>{formatDateDivider(item.date)}</span></div>;
+//               return <ChatMessage key={item.id} msg={item} currentUser={currentUser} isDark={isDark} />;
+//             })
+//           ) : <div className={`text-center mt-8 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Start the conversation!</div>}
+//           <div ref={chatEndRef} />
+//         </div>
+
+//         {(isMember || isAdmin) && (
+//           <div className={`p-4 shadow-2xl ${isDark ? 'bg-gray-800 border-t border-gray-700' : 'bg-white border-t'}`}>
+//             <div className="flex gap-2 items-end">
+//               <TextareaAutosize
+//                 minRows={1}
+//                 maxRows={5}
+//                 placeholder={isAdmin && !isMember ? "Admin view only" : "Type a message..."}
+//                 value={newMessage}
+//                 onChange={handleMessageChange}
+//                 onKeyDown={handleKeyPress}
+//                 className={`flex-1 p-3 border rounded-xl resize-none ${isDark ? 'bg-gray-700 text-white border-gray-600 placeholder-gray-400' : 'bg-gray-100 text-gray-900 border-gray-300 placeholder-gray-500'}`}
+//                 autoFocus
+//                 disabled={isAdmin && !isMember}
+//                 dir="ltr"
+//                 style={{ direction: 'ltr', textAlign: 'left' }}
+//               />
+//               <button onClick={sendMessage} disabled={!newMessage.trim() || (isAdmin && !isMember)} className="px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50"><Send className="w-5 h-5" /></button>
+//             </div>
+//           </div>
+//         )}
+
+//         {showAlertModal && (
+//           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+//             <div className={`rounded-lg p-6 w-full max-w-md ${isDark ? 'bg-gray-800 text-white' : 'bg-white'}`}>
+//               <div className="flex items-center justify-between mb-4"><div className="flex items-center gap-2"><span className="text-2xl">🚨</span><h3 className="text-xl font-bold">Send Alert</h3></div><button onClick={() => setShowAlertModal(false)} className="text-gray-500 hover:text-red-500"><X /></button></div>
+//               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Choose a preset or type a custom message. This sends a persistent notification.</p>
+//               <div className="space-y-2 mb-4">
+//                 {ALERT_PRESETS.map(phrase => (<button key={phrase} type="button" onClick={() => setAlertMessage(phrase)} className={`w-full text-left px-4 py-3 border rounded-lg text-sm ${alertMessage === phrase ? 'bg-red-600 text-white' : isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'}`}>{phrase}</button>))}
+//               </div>
+//               <div className="mb-4">
+//                 <label className="block text-xs font-semibold text-gray-500 mb-1">Or type a custom alert</label>
+//                 <textarea 
+//                   ref={alertInputRef} 
+//                   placeholder="Your alert message..." 
+//                   value={alertMessage} 
+//                   onChange={(e) => setAlertMessage(e.target.value)} 
+//                   className={`w-full p-3 border rounded-lg resize-none ${isDark ? 'bg-gray-700 text-white border-gray-600 placeholder-gray-400' : 'bg-white text-gray-900 border-gray-300 placeholder-gray-500'}`} 
+//                   rows={3} 
+//                   maxLength={200}
+//                   dir="ltr"
+//                   style={{ direction: 'ltr', textAlign: 'left' }}
+//                 />
+//                 {alertMessage && <div className="text-xs text-gray-500 mt-1">{alertMessage.length}/200</div>}
+//               </div>
+//               <div className="flex gap-3">
+//                 <button onClick={() => setShowAlertModal(false)} className={`flex-1 px-4 py-2 rounded-lg ${isDark ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-100 hover:bg-gray-200'}`}>Cancel</button>
+//                 <button onClick={sendAlert} disabled={!alertMessage.trim()} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"><span className="text-lg">🚨</span>Send Alert</button>
+//               </div>
+//             </div>
+//           </div>
+//         )}
+//       </div>
+//     );
+//   };
+  
+//   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
+//   if (showLoginForm) return <LoginPage onLogin={handleLogin} onRegister={handleRegister} />;
+//   if (showAdminDashboard) return <AdminDashboard />;
+//   if (showGossips) return <GossipsPage currentUser={currentUser} socketRef={socketRef} onBack={() => setShowGossips(false)} />;
+
+//   if (isMobile) {
+//     if (selectedThread) return <ChatView />;
+//     return <MobileRouter currentUser={currentUser} threads={getFilteredAndSortedThreads()} categories={categories} sortOptions={sortOptions} filterCategory={filterCategory} onCategoryChange={setFilterCategory} sortBy={sortBy} onSortChange={setSortBy} getTimeRemaining={getTimeRemaining} onThreadClick={setSelectedThread} onActionClick={async(thread) => { const { creatorId, members, pendingRequests } = thread; if (creatorId === currentUser.id && pendingRequests.length > 0) { setSelectedThread(thread); } else if (members.includes(currentUser.id)) { setSelectedThread(thread); } else if (!pendingRequests.includes(currentUser.id)) { try { await threadsAPI.requestJoin(thread.id, currentUser.id); loadThreads(); } catch (error) { alert('Error sending join request'); }}}} onCreateThread={async(formData)=>{ const allTags = [formData.category, ...formData.tags.split(',').map(t=>t.trim()).filter(Boolean)]; const threadData = { ...formData, tags: allTags, creator: currentUser.username, creatorId: currentUser.id, expiresAt: new Date(Date.now() + parseInt(formData.duration) * 3600000).toISOString() }; try { await threadsAPI.create(threadData); loadThreads(); } catch (error) { alert('Error creating thread'); }}} onLogout={()=>{ setCurrentUser(null); setShowLoginForm(true); localStorage.removeItem('currentUser');}} socketRef={socketRef} onShowGossips={()=>setShowGossips(true)} />;
+//   }
+
+//   return (
+//     <div className={`min-h-screen ${isDark ? 'dark bg-gray-900' : 'bg-gradient-to-br from-blue-50 to-pink-50'}`}>
+//       <header className={`shadow-lg border-b ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white/80 backdrop-blur-lg'}`}>
+//         <div className="max-w-6xl mx-auto px-4 py-4">
+//           <div className="flex items-center justify-between">
+//             <div className="flex items-center gap-3">
+//               <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600"><img src="/logo.jpg" alt="Logo" className="w-6 h-6 rounded-lg"/></div>
+//               <div><h1 className={`text-2xl font-bold ${isDark ? 'text-white' : ''}`}>Prastha</h1><p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Connect • Chat • Expire</p></div>
+//             </div>
+//             <div className="flex items-center gap-3">
+//               <span className={`text-sm ${isDark ? 'text-gray-300' : ''}`}>Hi, <span className="font-semibold">{currentUser.username}</span>!</span>
+//               <button onClick={toggleTheme} className={`p-2 rounded-lg ${isDark ? 'bg-gray-700 text-yellow-400' : 'bg-gray-100'}`} title="Toggle Theme">{isDark ? <Sun /> : <Moon />}</button>
+//               <button onClick={() => setShowGossips(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium shadow-lg bg-gradient-to-r from-purple-600 to-pink-600 text-white"><MessageSquare />Gossips</button>
+//               {!notificationsEnabled && Notification.permission !== 'denied' && (
+//                 <button onClick={async () => { const p = await Notification.requestPermission(); if(p === 'granted') setNotificationsEnabled(true); }} className="px-3 py-1 bg-green-100 text-green-700 text-xs rounded-lg animate-pulse">🔔 Enable Alerts</button>
+//               )}
+//               {notificationsEnabled && <span className="text-xs text-green-600 flex items-center gap-1">✅ Alerts On</span>}
+//               {currentUser.isAdmin && <button onClick={() => setShowAdminDashboard(true)} className="flex items-center gap-1 px-3 py-2 bg-red-600 text-white text-sm rounded-lg"><Shield className="w-4 h-4"/>Admin</button>}
+//               <button onClick={() => { if(window.confirm('Logout?')) { setCurrentUser(null); setShowLoginForm(true); localStorage.removeItem('currentUser'); }}} className="text-gray-500 hover:text-red-600 p-2"><LogOut /></button>
+//             </div>
+//           </div>
+//         </div>
+//       </header>
+      
+//       <div className={`${isDark ? 'bg-gradient-to-br from-gray-900 to-purple-900' : 'bg-gradient-to-br from-blue-50 to-pink-50'} border-b ${isDark ? 'border-gray-700' : ''}`}>
+//         <div className="max-w-6xl mx-auto px-4 py-8">
+//           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+//             <div className="flex-1 animate-slide-in">
+//               <h2 className={`text-4xl font-bold mb-3 ${isDark ? 'text-white' : ''}`}>Welcome back, <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{currentUser.username}</span>! 👋</h2>
+//               <p className={`text-lg mb-6 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Discover temporary event threads.</p>
+//               <div className="grid grid-cols-3 gap-4 mb-6">
+//                 <div className={`${isDark?'bg-gray-800/50':'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${isDark?'border-gray-700':''}`}><div className={`text-2xl font-bold ${isDark?'text-blue-400':'text-blue-600'}`}>{threads.length}</div><div className={`text-sm ${isDark?'text-gray-400':'text-gray-600'}`}>Active</div></div>
+//                 <div className={`${isDark?'bg-gray-800/50':'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${isDark?'border-gray-700':''}`}><div className={`text-2xl font-bold ${isDark?'text-green-400':'text-green-600'}`}>{threads.filter(t => t.members.includes(currentUser.id)).length}</div><div className={`text-sm ${isDark?'text-gray-400':'text-gray-600'}`}>Joined</div></div>
+//                 <div className={`${isDark?'bg-gray-800/50':'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${isDark?'border-gray-700':''}`}><div className={`text-2xl font-bold ${isDark?'text-purple-400':'text-purple-600'}`}>{threads.filter(t => t.creatorId === currentUser.id).length}</div><div className={`text-sm ${isDark?'text-gray-400':'text-gray-600'}`}>Created</div></div>
+//               </div>
+//             </div>
+//             <div className="flex flex-col gap-3 animate-fade-in">
+//               <button onClick={() => setShowCreateForm(true)} className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold shadow-2xl transform hover:scale-105"><Plus />Create Thread</button>
+//               <button onClick={() => setShowGossips(true)} className="flex items-center gap-3 px-8 py-4 rounded-xl font-semibold shadow-xl transform hover:scale-105 bg-gradient-to-r from-purple-600 to-pink-600 text-white"><MessageSquare />Browse Gossips</button>
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+
+//       <main className="max-w-6xl mx-auto px-4 py-8">
+//         <div className="mb-8 space-y-6 animate-fade-in">
+//           <div className={`rounded-2xl border shadow-xl ${isDark ? 'bg-gray-800/70 border-gray-700' : 'bg-white/90'}`}>
+//             <div className="p-6">
+//               <div className="flex items-center justify-between mb-4"><h3 className={`text-lg font-bold flex items-center gap-2 ${isDark?'text-white':''}`}><Hash />Filter by Category</h3><span className={`text-sm px-3 py-1 rounded-full ${isDark?'bg-gray-700':'bg-gray-100'}`}>{getFilteredAndSortedThreads().length} threads</span></div>
+//               <div className="flex flex-wrap gap-3">
+//                 {categories.map(cat => ( <button key={cat.id} onClick={() => setFilterCategory(cat.id)} className={`px-5 py-2.5 rounded-xl text-sm font-semibold transform hover:scale-105 ${filterCategory===cat.id ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-xl' : isDark ? 'bg-gray-700/50 border border-gray-600' : 'bg-gray-100 border'}`}>{cat.label}</button> ))}
+//               </div>
+//             </div>
+//           </div>
+//           <div className={`rounded-2xl border shadow-xl ${isDark ? 'bg-gray-800/70 border-gray-700' : 'bg-white/90'}`}>
+//             <div className="p-6">
+//               <h3 className={`text-lg font-bold flex items-center gap-2 mb-4 ${isDark?'text-white':''}`}><ArrowUpDown />Sort Threads</h3>
+//               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+//                 {sortOptions.map(opt => ( <button key={opt.id} onClick={() => setSortBy(opt.id)} className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transform hover:scale-105 ${sortBy===opt.id ? 'bg-gradient-to-br from-green-600 to-teal-600 text-white shadow-xl' : isDark ? 'bg-gray-700/50 border border-gray-600' : 'bg-gray-100 border'}`}>{opt.icon&&<opt.icon className="w-4"/>}{opt.label}</button> ))}
+//               </div>
+//             </div>
+//           </div>
+//         </div>
+
+//         <div className="mb-6 flex items-center justify-between animate-fade-in">
+//           <h2 className={`text-2xl font-bold flex items-center gap-3 ${isDark ? 'text-white' : ''}`}><Sparkles className="text-yellow-500" />{categories.find(c=>c.id===filterCategory)?.label} Threads <span className={`text-lg px-3 py-1 rounded-full ${isDark?'bg-gray-800':'bg-gray-100'}`}>{getFilteredAndSortedThreads().length}</span></h2>
+//         </div>
+        
+//         {getFilteredAndSortedThreads().length === 0 ? (
+//           <div className={`text-center py-20 rounded-2xl border ${isDark ? 'bg-gray-800/50 border-gray-700' : 'bg-white/80'} animate-fade-in`}>
+//             <div className="max-w-md mx-auto">
+//               <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center"><Calendar className={`w-12 h-12 ${isDark?'text-blue-400':'text-blue-600'}`} /></div>
+//               <h3 className={`text-2xl font-bold mb-3 ${isDark?'text-white':''}`}>No Threads Yet</h3>
+//               <p className={`text-lg mb-6 ${isDark?'text-gray-400':'text-gray-600'}`}>Be the first to create an event!</p>
+//               <button onClick={() => setShowCreateForm(true)} className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold shadow-2xl transform hover:scale-105"><Plus className="inline w-5 h-5"/> Create Thread</button>
+//             </div>
+//           </div>
+//         ) : (
+//           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+//             {getFilteredAndSortedThreads().map(thread => {
+//               const isCreator = thread.creatorId === currentUser.id;
+//               const isMember = thread.members.includes(currentUser.id);
+//               const hasPendingRequest = thread.pendingRequests.includes(currentUser.id);
+//               const hasPendingRequests = isCreator && thread.pendingRequests.length > 0;
+//               return (
+//                 <div key={thread.id} className={`rounded-2xl border shadow-xl overflow-hidden animate-fade-in ${isDark ? 'bg-gray-800/70 border-gray-700' : 'bg-white/90'}`}>
+//                   <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4"><h3 className="font-bold text-white text-xl">{thread.title}</h3><p className="text-blue-100 text-sm">{thread.description}</p></div>
+//                   <div className="p-5">
+//                     <div className="grid grid-cols-2 gap-3 mb-4 text-sm"><div className={`flex items-center gap-2 ${isDark?'text-gray-300':'text-gray-600'}`}><User className="w-4 text-blue-500"/>{thread.creator}</div><div className={`flex items-center gap-2 ${isDark?'text-gray-300':'text-gray-600'}`}><MapPin className="w-4 text-red-500"/>{thread.location}</div><div className={`flex items-center gap-2 ${isDark?'text-gray-300':'text-gray-600'}`}><Clock className="w-4 text-yellow-500"/>{getTimeRemaining(thread.expiresAt)}</div><div className={`flex items-center gap-2 ${isDark?'text-gray-300':'text-gray-600'}`}><Users className="w-4 text-green-500"/>{thread.members.length} members</div></div>
+//                     {hasPendingRequests && <div className="mb-4 px-3 py-2 bg-orange-100 border rounded-lg flex items-center gap-2"><Bell className="w-4 text-orange-600"/><span className="text-sm text-orange-800 font-semibold">{thread.pendingRequests.length} pending</span></div>}
+//                     <div className="flex flex-wrap gap-2 mb-4">
+//                       {thread.tags.map(tag => ( <span key={tag} className={`inline-flex items-center gap-1 text-xs px-3 py-1 rounded-full font-medium ${isDark ? 'bg-blue-900/50 text-blue-300 border border-blue-700' : 'bg-blue-50 text-blue-700 border border-blue-200'}`}><Hash className="w-3"/>{tag}</span> ))}
+//                     </div>
+//                     <div className="flex gap-2 flex-wrap">
+//                       {isCreator && <button onClick={() => {setEditingThread(thread); setShowEditForm(true);}} className={`px-4 py-2.5 rounded-xl font-semibold border ${isDark?'bg-gray-700 text-blue-400 border-blue-700':'bg-white text-blue-600 border-blue-600'}`}>Edit Thread</button>}
+//                       {isMember ? (<button onClick={() => setSelectedThread(thread)} className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-xl flex-1 font-semibold justify-center"><MessageCircle className="w-4"/>Chat ({thread.chat.length})</button>) : hasPendingRequest ? (<button className="px-4 py-2.5 bg-yellow-100 text-yellow-800 rounded-xl flex-1 cursor-not-allowed" disabled><Clock className="w-4 inline mr-2"/>Pending</button>) : (<button onClick={async () => { try { await threadsAPI.requestJoin(thread.id, currentUser.id); loadThreads(); } catch (e) { alert('Error sending request'); }}} className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl flex-1 font-semibold justify-center"><Plus className="w-4"/>Request to Join</button>)}
+//                       {hasPendingRequests && <button onClick={() => setSelectedThread(thread)} className="px-4 py-2.5 bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-xl font-semibold">Review Requests</button>}
+//                     </div>
+//                   </div>
+//                 </div>
+//               );
+//             })}
+//           </div>
+//         )}
+//       </main>
+//       {showCreateForm && <CreateThreadForm />}
+//       {showEditForm && <EditThreadForm />}
+//       {selectedThread && <ChatView />}
+//     </div>
+//   );
+// }
+
+// export default App
+
+//test
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
-import { Clock, Users, MapPin, MessageCircle, Plus, X, Check, Hash, Calendar, Send, LogOut, User, Shield, Trash2, Eye, MessageSquare, Moon, Sun, Bell, Sparkles, ArrowUpDown, TrendingUp, TrendingDown, Zap, AlertTriangle } from 'lucide-react';
+import { Clock, Users, MapPin, MessageCircle, Plus, X, Check, Hash, Calendar, Send, LogOut, User, Shield, Trash2, Eye, MessageSquare, Moon, Sun, Bell, Sparkles, ArrowUpDown, TrendingUp, TrendingDown, Zap, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { authAPI, threadsAPI, adminAPI } from './services/api';
 import LoginPage from './components/LoginPage';
@@ -1336,7 +2176,6 @@ import MobileRouter from './components/mobile/MobileRouter';
 import { io } from 'socket.io-client';
 import { useTheme } from './context/ThemeContext';
 
-// remove bidi / directionality chars and normalize
 const cleanBidi = (s = '') =>
   String(s)
     .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, '')
@@ -1353,7 +2192,6 @@ const ALERT_PRESETS = [
 
 const SOCKET_URL = import.meta.env.VITE_API_URL || '';
 
-// Helper functions
 const formatTime = (dateString) => {
   return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
@@ -1482,7 +2320,6 @@ function App() {
   
   const alertInputRef = useRef(null);
 
-  // Check for existing session on mount
   useEffect(() => {
     const storedUser = localStorage.getItem('currentUser');
     if (storedUser) {
@@ -1498,14 +2335,12 @@ function App() {
     setLoading(false);
   }, []);
 
-  // Responsive breakpoint listener
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Request notification permission on login
   useEffect(() => {
     if (currentUser && !showLoginForm && 'Notification' in window) {
       if (Notification.permission === 'granted') {
@@ -1545,7 +2380,6 @@ function App() {
     { id: 'mostActive', label: 'Most Active', icon: MessageCircle }
   ];
 
-  // Initialize Socket.io
   useEffect(() => {
     if (currentUser && !showLoginForm) {
       socketRef.current = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
@@ -1570,7 +2404,6 @@ function App() {
     }
   }, [currentUser, showLoginForm, notificationsEnabled]);
 
-  // Load threads periodically
   useEffect(() => {
     if (currentUser && !showLoginForm) {
       loadThreads();
@@ -1579,7 +2412,6 @@ function App() {
     }
   }, [currentUser, showLoginForm, showCreateForm, showEditForm]);
 
-  // Load admin dashboard
   useEffect(() => {
     if (currentUser?.isAdmin && showAdminDashboard) loadAdminDashboard();
   }, [currentUser, showAdminDashboard]);
@@ -1599,17 +2431,43 @@ function App() {
 
   const getFilteredAndSortedThreads = () => {
     let filtered = threads;
+
     if (filterCategory !== 'all') {
-      filtered = threads.filter(thread => thread.tags.some(tag => tag.toLowerCase().includes(filterCategory.toLowerCase())));
+      filtered = threads.filter(thread => {
+        if (!thread.tags || thread.tags.length === 0) return false;
+        
+        return thread.tags.some(tag => {
+          const tagLower = tag.toLowerCase();
+          const categoryLower = filterCategory.toLowerCase();
+          
+          if (tagLower === categoryLower) return true;
+          if (tagLower.includes(categoryLower)) return true;
+          
+          if (filterCategory === 'tech' && (tagLower.includes('coding') || tagLower.includes('programming') || tagLower.includes('tech'))) return true;
+          if (filterCategory === 'study' && (tagLower.includes('study') || tagLower.includes('learning') || tagLower.includes('education'))) return true;
+          if (filterCategory === 'sports' && (tagLower.includes('sport') || tagLower.includes('fitness') || tagLower.includes('workout'))) return true;
+          if (filterCategory === 'food' && (tagLower.includes('food') || tagLower.includes('drink') || tagLower.includes('coffee'))) return true;
+          if (filterCategory === 'entertainment' && (tagLower.includes('entertainment') || tagLower.includes('movie') || tagLower.includes('film'))) return true;
+          
+          return false;
+        });
+      });
     }
+
     return [...filtered].sort((a, b) => {
       switch (sortBy) {
-        case 'newest': return new Date(b.createdAt) - new Date(a.createdAt);
-        case 'oldest': return new Date(a.createdAt) - new Date(b.createdAt);
-        case 'mostMembers': return b.members.length - a.members.length;
-        case 'expiringSoon': return new Date(a.expiresAt) - new Date(b.expiresAt);
-        case 'mostActive': return b.chat.length - a.chat.length;
-        default: return 0;
+        case 'newest':
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        case 'oldest':
+          return new Date(a.createdAt) - new Date(b.createdAt);
+        case 'mostMembers':
+          return (b.members?.length || 0) - (a.members?.length || 0);
+        case 'expiringSoon':
+          return new Date(a.expiresAt) - new Date(b.expiresAt);
+        case 'mostActive':
+          return (b.chat?.length || 0) - (a.chat?.length || 0);
+        default:
+          return 0;
       }
     });
   };
@@ -1749,9 +2607,12 @@ function App() {
     };
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-between items-center mb-4"><h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Create Event Thread</h2><button onClick={() => setShowCreateForm(false)} className={isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}><X/></button></div>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md my-8 max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center mb-4 sticky top-0 bg-white dark:bg-gray-800 pb-2 z-10">
+            <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Create Event Thread</h2>
+            <button onClick={() => setShowCreateForm(false)} className={isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}><X/></button>
+          </div>
           <div className="space-y-4">
             <input type="text" placeholder="Event Title" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'}`} dir="ltr" />
             <textarea placeholder="Description" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'}`} rows={3} dir="ltr" />
@@ -1763,7 +2624,10 @@ function App() {
             <select value={formData.duration} onChange={(e) => setFormData({...formData, duration: e.target.value})} className={`w-full p-3 border rounded-lg ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
               <option value="1">1 hour</option><option value="2">2 hours</option><option value="4">4 hours</option><option value="8">8 hours</option>
             </select>
-            <div className="flex gap-3"><button onClick={() => setShowCreateForm(false)} className={`flex-1 py-2 rounded-lg ${isDark ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-900'}`}>Cancel</button><button onClick={handleSubmit} disabled={isSubmitting} className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">{isSubmitting ? 'Creating...' : 'Create'}</button></div>
+            <div className="flex gap-3 pt-2 sticky bottom-0 bg-white dark:bg-gray-800 pb-2">
+              <button onClick={() => setShowCreateForm(false)} className={`flex-1 py-2 rounded-lg ${isDark ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-900'}`}>Cancel</button>
+              <button onClick={handleSubmit} disabled={isSubmitting} className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">{isSubmitting ? 'Creating...' : 'Create'}</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1805,8 +2669,6 @@ function App() {
     );
   };
 
-  // Chat View Component
-    // Chat View Component
   const ChatView = () => {
     if (!selectedThread) return null;
 
@@ -1816,36 +2678,29 @@ function App() {
     const isAdmin = currentUser.isAdmin;
     
     const chatEndRef = useRef(null);
-    const chatContainerRef = useRef(null); // Added missing ref
+    const chatContainerRef = useRef(null);
     const isUserScrollingRef = useRef(false);
     const scrollTimeoutRef = useRef(null);
-    const shouldAutoScrollRef = useRef(true); // Added missing ref
-    // Efficient scroll to bottom — avoids forced reflow
-// Smooth, reflow-safe scroll to bottom
-const scrollToBottom = (smooth = false) => {
-  const container = chatContainerRef.current;
-  if (!container || isUserScrollingRef.current) return;
+    const shouldAutoScrollRef = useRef(true);
 
-  // Avoid layout thrash by batching DOM write
-  requestAnimationFrame(() => {
-    container.scrollTo({
-      top: container.scrollHeight,
-      behavior: smooth ? 'smooth' : 'auto',
-    });
-  });
-};
+    const scrollToBottom = (smooth = false) => {
+      const container = chatContainerRef.current;
+      if (!container || isUserScrollingRef.current) return;
 
-// Scroll on mount or when chat length changes
-useLayoutEffect(() => {
-  // UseLayoutEffect runs before paint → avoids layout jank
-  if (selectedThread?.chat?.length) {
-    scrollToBottom();
-  }
-}, [selectedThread?.chat?.length]);
+      requestAnimationFrame(() => {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: smooth ? 'smooth' : 'auto',
+        });
+      });
+    };
 
+    useLayoutEffect(() => {
+      if (selectedThread?.chat?.length) {
+        scrollToBottom();
+      }
+    }, [selectedThread?.chat?.length]);
 
-
-    // Detect user scrolling
     const handleScroll = () => {
         isUserScrollingRef.current = true;
         
@@ -1896,7 +2751,6 @@ useLayoutEffect(() => {
       
       try {
         await threadsAPI.sendMessage(selectedThread.id, { user: currentUser.username, userId: currentUser.id, message: messageText });
-        // Auto-scroll will happen via useEffect when new message arrives
         shouldAutoScrollRef.current = true;
       } catch (error) {
         setNewMessage(messageText);
@@ -1944,7 +2798,6 @@ useLayoutEffect(() => {
         });
         return items;
     }, [selectedThread?.chat]);
-
 
     return (
       <div className="fixed inset-0 bg-gray-50 dark:bg-gray-900 z-40 flex flex-col">
@@ -2163,4 +3016,4 @@ useLayoutEffect(() => {
   );
 }
 
-export default App
+export default App;
