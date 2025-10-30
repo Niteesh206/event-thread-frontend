@@ -24,14 +24,24 @@ const HomePage = ({ currentUser, threads, categories, filterCategory, onCategory
     created: threads.filter(t => t.creatorId === currentUser?.id).length
   };
 
-  // Filter threads based on search query
-  const filteredThreads = searchQuery.trim()
-    ? threads.filter(thread =>
-        thread.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        thread.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        thread.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-    : threads;
+  // Filter threads based on category and search query
+  const filteredThreads = threads.filter(thread => {
+    // Category filter
+    const categoryMatch = filterCategory === 'all' || thread.tags?.some(tag => 
+      tag.toLowerCase().includes(filterCategory.toLowerCase()) ||
+      (filterCategory === 'tech' && (tag.toLowerCase().includes('coding') || tag.toLowerCase().includes('programming'))) ||
+      (filterCategory === 'study' && (tag.toLowerCase().includes('study') || tag.toLowerCase().includes('learning')))
+    );
+
+    // Search query filter
+    const searchMatch = !searchQuery.trim() || (
+      thread.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      thread.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      thread.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+
+    return categoryMatch && searchMatch;
+  });
 
   // Get recent threads (limit to 5)
   const recentThreads = filteredThreads
@@ -110,7 +120,7 @@ const HomePage = ({ currentUser, threads, categories, filterCategory, onCategory
             Categories
           </h2>
           <button
-            onClick={() => navigate('/categories')}
+            onClick={() => navigate('/explore')}
             className="text-sm text-blue-600 dark:text-blue-400 font-medium"
           >
             See All →
@@ -135,7 +145,12 @@ const HomePage = ({ currentUser, threads, categories, filterCategory, onCategory
       <div className="px-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {searchQuery ? `Search Results (${filteredThreads.length})` : 'Recent Threads'}
+            {searchQuery 
+              ? `Search Results (${filteredThreads.length})` 
+              : filterCategory === 'all' 
+              ? 'Recent Threads' 
+              : `${categories.find(c => c.id === filterCategory)?.label || filterCategory} (${filteredThreads.length})`
+            }
           </h2>
           <button
             onClick={() => navigate('/explore')}
