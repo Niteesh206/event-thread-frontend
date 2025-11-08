@@ -705,10 +705,10 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
                   Reply
                 </button>
                 <button className="text-xs font-bold text-gray-500 hover:text-gray-700">
-                  Share
+                  
                 </button>
                 <button className="text-xs font-bold text-gray-500 hover:text-gray-700">
-                  Report
+                
                 </button>
               </div>
 
