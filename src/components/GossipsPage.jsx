@@ -832,34 +832,58 @@ const GossipsPage = ({ currentUser, socketRef, onBack }) => {
     }
   }, [socketRef, loadGossips]); // Add loadGossips as a dependency
 
+  // ***** THIS IS THE FIXED FUNCTION *****
   const handleVote = async (gossipId, voteType) => {
     try {
+      // 1. Call the API
       const result = await gossipsAPI.vote(gossipId, currentUser.id, voteType);
+      
       if (result.data.success) {
-        // Update list state
+        // 2. Get the new vote counts from the API response
+        const { upvotes, downvotes } = result.data;
+        const userId = currentUser.id;
+
+        // 3. Create an "updater" function that manually builds the new state
+        const updateGossip = (prevGossip) => {
+          // Get the *current* state of the arrays *before* the update
+          const filteredUpvotedBy = prevGossip.upvotedBy.filter(id => id !== userId);
+          const filteredDownvotedBy = prevGossip.downvotedBy.filter(id => id !== userId);
+          
+          let finalUpvotedBy = filteredUpvotedBy;
+          let finalDownvotedBy = filteredDownvotedBy;
+
+          // 4. Add the ID back *only* if it's a new 'up' or 'down' vote
+          if (voteType === 'up') {
+            finalUpvotedBy.push(userId);
+          } else if (voteType === 'down') {
+            finalDownvotedBy.push(userId);
+          }
+          // If voteType is null, we do nothing, and the filtered arrays are used
+
+          // 5. Return the complete, new gossip object
+          return {
+            ...prevGossip,
+            upvotes,    // New count from API
+            downvotes,  // New count from API
+            upvotedBy: finalUpvotedBy,   // New array built on client
+            downvotedBy: finalDownvotedBy, // New array built on client
+          };
+        };
+
+        // 6. Update both state variables using the updater function
         setGossips(prevGossips =>
-          prevGossips.map(g =>
-            g.id === gossipId
-              ? { ...g, upvotes: result.data.upvotes, downvotes: result.data.downvotes, upvotedBy: result.data.upvotedBy, downvotedBy: result.data.downvotedBy } // Ensure vote arrays are updated too
-              : g
-          )
+          prevGossips.map(g => (g.id === gossipId ? updateGossip(g) : g))
         );
         
-        // Update selected gossip if viewing
         if (selectedGossip?.id === gossipId) {
-          setSelectedGossip(prev => ({ 
-            ...prev, 
-            upvotes: result.data.upvotes, 
-            downvotes: result.data.downvotes,
-            upvotedBy: result.data.upvotedBy,
-            downvotedBy: result.data.downvotedBy
-          }));
+          setSelectedGossip(prevSelectedGossip => updateGossip(prevSelectedGossip));
         }
       }
     } catch (error) {
       console.error('Error voting:', error);
     }
   };
+  // ***** END OF FIXED FUNCTION *****
 
   const handleDelete = async (gossipId) => {
     if (window.confirm('Are you sure you want to delete this gossip?')) {
@@ -1403,7 +1427,6 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
     
     // onCommentAdded is what actually triggers the data refresh
     // We call it here to ensure replies also refresh the list
-    // (This was passed down but not used in the original)
     if (onCommentAdded) {
       onCommentAdded();
     }
