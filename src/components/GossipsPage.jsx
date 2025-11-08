@@ -762,8 +762,7 @@
 
 
 
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ThumbsUp, ThumbsDown, MessageCircle, Plus, X, Send, Trash2, ArrowLeft, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 import { gossipsAPI } from '../services/api';
 
@@ -774,49 +773,87 @@ const GossipsPage = ({ currentUser, socketRef, onBack }) => {
   const [selectedGossip, setSelectedGossip] = useState(null); // NEW: Single gossip view
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadGossips();
-  }, [sortBy]);
-
-  useEffect(() => {
-    if (socketRef?.current) {
-      socketRef.current.on('gossip-updated', () => loadGossips());
-      socketRef.current.on('gossip-comment-added', () => loadGossips());
-      socketRef.current.on('gossip-deleted', () => loadGossips());
-
-      return () => {
-        socketRef.current.off('gossip-updated');
-        socketRef.current.off('gossip-comment-added');
-        socketRef.current.off('gossip-deleted');
-      };
-    }
-  }, [socketRef]);
-
-  const loadGossips = async () => {
+  // 1. Wrap loadGossips in useCallback
+  const loadGossips = useCallback(async () => {
     try {
+      setLoading(true);
       const response = await gossipsAPI.getAll(sortBy);
       if (response.data.success) {
-        setGossips(response.data.gossips);
+        const newGossipsList = response.data.gossips;
+        
+        // Update the main list
+        setGossips(newGossipsList);
+
+        // 2. ALSO update the selectedGossip state
+        // Use the functional update form to avoid stale state issues
+        setSelectedGossip(prevSelectedGossip => {
+          if (!prevSelectedGossip) {
+            return null; // Not viewing anything, so do nothing
+          }
+
+          // Find the new, updated version of the gossip we were viewing
+          const updatedSelectedGossip = newGossipsList.find(
+            g => g.id === prevSelectedGossip.id
+          );
+
+          // Return the new gossip, or null if it was deleted/expired
+          return updatedSelectedGossip || null;
+        });
       }
     } catch (error) {
       console.error('Error loading gossips:', error);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [sortBy]); // Dependency array includes sortBy
+
+  // 3. Update useEffect to depend on the memoized loadGossips
+  useEffect(() => {
+    loadGossips();
+  }, [loadGossips]);
+
+  // 4. Update socket useEffect to also depend on the memoized loadGossips
+  useEffect(() => {
+    if (socketRef?.current) {
+      // Create a stable handler
+      const handleSocketUpdate = () => {
+        loadGossips();
+      };
+      
+      socketRef.current.on('gossip-updated', handleSocketUpdate);
+      socketRef.current.on('gossip-comment-added', handleSocketUpdate);
+      socketRef.current.on('gossip-deleted', handleSocketUpdate);
+
+      return () => {
+        socketRef.current.off('gossip-updated', handleSocketUpdate);
+        socketRef.current.off('gossip-comment-added', handleSocketUpdate);
+        socketRef.current.off('gossip-deleted', handleSocketUpdate);
+      };
+    }
+  }, [socketRef, loadGossips]); // Add loadGossips as a dependency
 
   const handleVote = async (gossipId, voteType) => {
     try {
       const result = await gossipsAPI.vote(gossipId, currentUser.id, voteType);
       if (result.data.success) {
+        // Update list state
         setGossips(prevGossips =>
           prevGossips.map(g =>
             g.id === gossipId
-              ? { ...g, upvotes: result.data.upvotes, downvotes: result.data.downvotes }
+              ? { ...g, upvotes: result.data.upvotes, downvotes: result.data.downvotes, upvotedBy: result.data.upvotedBy, downvotedBy: result.data.downvotedBy } // Ensure vote arrays are updated too
               : g
           )
         );
+        
         // Update selected gossip if viewing
         if (selectedGossip?.id === gossipId) {
-          setSelectedGossip(prev => ({ ...prev, upvotes: result.data.upvotes, downvotes: result.data.downvotes }));
+          setSelectedGossip(prev => ({ 
+            ...prev, 
+            upvotes: result.data.upvotes, 
+            downvotes: result.data.downvotes,
+            upvotedBy: result.data.upvotedBy,
+            downvotedBy: result.data.downvotedBy
+          }));
         }
       }
     } catch (error) {
@@ -828,7 +865,9 @@ const GossipsPage = ({ currentUser, socketRef, onBack }) => {
     if (window.confirm('Are you sure you want to delete this gossip?')) {
       try {
         await gossipsAPI.delete(gossipId, currentUser.id);
-        loadGossips();
+        // loadGossips() will be triggered by socket event, but we can call it 
+        // manually for instant UI update just in case.
+        loadGossips(); 
         if (selectedGossip?.id === gossipId) {
           setSelectedGossip(null); // Close view if deleted
         }
@@ -852,12 +891,15 @@ const GossipsPage = ({ currentUser, socketRef, onBack }) => {
   if (selectedGossip) {
     return (
       <SingleGossipView
+        // Pass the key to force re-render if the gossip ID changes (optional but good practice)
+        key={selectedGossip.id} 
         gossip={selectedGossip}
         currentUser={currentUser}
         onBack={() => setSelectedGossip(null)}
         onVote={handleVote}
         onDelete={handleDelete}
-        onCommentAdded={loadGossips}
+        // This will now trigger the fixed loadGossips
+        onCommentAdded={loadGossips} 
       />
     );
   }
@@ -919,7 +961,12 @@ const GossipsPage = ({ currentUser, socketRef, onBack }) => {
 
         {/* Gossips List */}
         <div className="space-y-4">
-          {gossips.length === 0 ? (
+          {loading && gossips.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+              <p className="text-gray-500 mt-4">Loading Gossips...</p>
+            </div>
+          ) : !loading && gossips.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-2xl shadow-lg border border-purple-100">
               <div className="text-6xl mb-4">💬</div>
               <p className="text-gray-500 text-lg font-medium mb-2">No gossips yet</p>
@@ -1041,6 +1088,7 @@ const SingleGossipView = ({ gossip, currentUser, onBack, onVote, onDelete, onCom
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // This component now receives a fully up-to-date 'gossip' prop
   const hasUpvoted = gossip.upvotedBy.includes(currentUser.id);
   const hasDownvoted = gossip.downvotedBy.includes(currentUser.id);
   const isAuthor = gossip.authorId === currentUser.id;
@@ -1063,7 +1111,7 @@ const SingleGossipView = ({ gossip, currentUser, onBack, onVote, onDelete, onCom
       await gossipsAPI.addComment(gossip.id, commentData);
       setNewComment('');
       setShowCommentBox(false);
-      onCommentAdded();
+      onCommentAdded(); // This now triggers the fixed loadGossips
     } catch (error) {
       alert('Error adding comment');
     } finally {
@@ -1082,7 +1130,7 @@ const SingleGossipView = ({ gossip, currentUser, onBack, onVote, onDelete, onCom
       };
 
       await gossipsAPI.addComment(gossip.id, commentData);
-      onCommentAdded();
+      onCommentAdded(); // This now triggers the fixed loadGossips
     } catch (error) {
       alert('Error adding reply');
     }
@@ -1092,6 +1140,11 @@ const SingleGossipView = ({ gossip, currentUser, onBack, onVote, onDelete, onCom
     const commentMap = {};
     const roots = [];
 
+    // Ensure comments is an array before processing
+    if (!Array.isArray(comments)) {
+      return [];
+    }
+    
     comments.forEach(comment => {
       commentMap[comment.id] = { ...comment, replies: [] };
     });
@@ -1292,7 +1345,7 @@ const SingleGossipView = ({ gossip, currentUser, onBack, onVote, onDelete, onCom
               <MessageCircle className="w-6 h-6 text-purple-600 dark:text-purple-400" />
             </div>
             <span>
-              {commentTree.length === 0 ? 'No Comments Yet' : `${commentTree.length} ${commentTree.length === 1 ? 'Comment' : 'Comments'}`}
+              {commentTree.length === 0 ? 'No Comments Yet' : `${gossip.comments.length} ${gossip.comments.length === 1 ? 'Comment' : 'Comments'}`}
             </span>
           </h2>
           {commentTree.length === 0 ? (
@@ -1329,7 +1382,7 @@ const SingleGossipView = ({ gossip, currentUser, onBack, onVote, onDelete, onCom
   );
 };
 
-// Reddit-style Comment Component (same as before)
+// Reddit-style Comment Component
 const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdded }) => {
   const [collapsed, setCollapsed] = useState(false);
   const [showReplyBox, setShowReplyBox] = useState(false);
@@ -1340,11 +1393,20 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
     if (!replyText.trim()) return;
     setLoading(true);
     
+    // onReply just posts the data
     await onReply(comment.id, comment.author, replyText);
+    
+    // Clear state
     setReplyText('');
     setShowReplyBox(false);
     setLoading(false);
-    onCommentAdded();
+    
+    // onCommentAdded is what actually triggers the data refresh
+    // We call it here to ensure replies also refresh the list
+    // (This was passed down but not used in the original)
+    if (onCommentAdded) {
+      onCommentAdded();
+    }
   };
 
   const indentColor = [
@@ -1425,7 +1487,7 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
                         disabled={!replyText.trim() || loading}
                         className="px-3 py-1 text-xs font-medium bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
                       >
-                        Comment
+                        {loading ? '...' : 'Comment'}
                       </button>
                     </div>
                   </div>
@@ -1441,7 +1503,7 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
                       currentUser={currentUser}
                       onReply={onReply}
                       depth={depth + 1}
-                      onCommentAdded={onCommentAdded}
+                      onCommentAdded={onCommentAdded} // Pass the prop down
                     />
                   ))}
                 </div>
@@ -1460,7 +1522,7 @@ const RedditComment = ({ comment, currentUser, onReply, depth = 0, onCommentAdde
   );
 };
 
-// Create Gossip Form (same as before)
+// Create Gossip Form
 const CreateGossipForm = ({ currentUser, onClose, onSuccess }) => {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
@@ -1479,7 +1541,7 @@ const CreateGossipForm = ({ currentUser, onClose, onSuccess }) => {
       await gossipsAPI.create(gossipData);
       setContent('');
       onClose();
-      onSuccess();
+      onSuccess(); // This triggers the fixed loadGossips
     } catch (error) {
       alert('Error creating gossip');
     } finally {
@@ -1565,10 +1627,12 @@ const getTimeRemaining = (expiresAt) => {
   if (diff <= 0) return 'Expired';
   
   const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
   const days = Math.floor(hours / 24);
-  
+ 
   if (days > 0) return `${days}d remaining`;
   if (hours > 0) return `${hours}h remaining`;
+  if (minutes > 0) return `${minutes}m remaining`;
   return 'Expiring soon';
 };
 
